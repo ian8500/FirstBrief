@@ -1,0 +1,18 @@
+requirement_id,area,requirement,status
+NFR-01,Availability and recovery,"Define service hours, availability, RTO, RPO, backup frequency, and tested restore cadence.",Proposed
+NFR-02,Performance,"Meet approved p95 interactive response and asynchronous report completion targets at agreed load.",Proposed
+NFR-03,Accessibility,"Meet WCAG 2.2 AA with keyboard, screen-reader, non-colour status, and accessible PDF evidence.",Proposed
+NFR-04,Security,"Apply SSO/MFA-preferred and OWASP ASVS-aligned controls, scanning, secrets management, and penetration testing.",Proposed
+NFR-05,Audit,"Keep append-only governed events for authentication, lifecycle, rights, evidence, imports, exports, and configuration.",Proposed
+NFR-06,Time,"Store UTC, display configured IANA site timezone, handle DST explicitly, and monitor time synchronisation.",Proposed
+NFR-07,Concurrency,"Reject stale writes with optimistic concurrency and a clear refresh/compare workflow.",Proposed
+NFR-08,File assurance,"Validate, quarantine, malware scan, checksum, version, and access-control uploaded PDFs.",Proposed
+NFR-09,Data protection,"Apply minimisation, approved retention/legal hold, subject-access, export/redaction, and purge evidence.",Proposed
+NFR-10,Operational resilience,"Monitor health, queues/outbox, retries/dead letters, alerts, and degraded-mode behaviour.",Proposed
+FR-K01,Withdraw before effective,"Authorised users can withdraw an approved or released-but-not-effective instruction with reason, notification, and audit.",Proposed
+FR-K02,Cancel after release/effective,"Authorised users can cancel a released/effective instruction while preserving an immutable marked original.",Proposed
+FR-K03,Supersession,"A new instruction can supersede an earlier one with explicit bidirectional links.",Proposed
+FR-K04,Notification scheduling,"Visibility and notification timing are independent; offsets, quiet hours, retries, and deduplication are configurable.",Proposed
+FR-K05,Business continuity export,"Authorised users can create a timestamped offline briefing/compliance pack with checksums.",Proposed
+FR-K06,Delegated approval,"Approvers can nominate time-bounded delegates with a complete audit trail.",Proposed
+FR-K07,Bulk acknowledgement support,"Supervisors can filter/chase outstanding acknowledgements without acknowledging for users unless explicitly authorised and audited.",Proposed
