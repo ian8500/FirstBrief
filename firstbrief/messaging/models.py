@@ -84,10 +84,7 @@ class Message(models.Model):
     def save(self, *args: Any, **kwargs: Any) -> None:
         if self.pk:
             original = (
-                type(self)
-                .objects.filter(pk=self.pk)
-                .values_list("message_id", flat=True)
-                .first()
+                type(self).objects.filter(pk=self.pk).values_list("message_id", flat=True).first()
             )
             if original is not None and original != self.message_id:
                 raise ValidationError({"message_id": "Message ID is immutable."})
@@ -206,9 +203,7 @@ class MessageAudienceRight(models.Model):
 
 class Approval(models.Model):
     message = models.ForeignKey(Message, on_delete=models.PROTECT, related_name="approvals")
-    version = models.ForeignKey(
-        MessageVersion, on_delete=models.PROTECT, related_name="approvals"
-    )
+    version = models.ForeignKey(MessageVersion, on_delete=models.PROTECT, related_name="approvals")
     actor = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="message_approvals"
     )

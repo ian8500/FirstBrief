@@ -58,8 +58,12 @@ class MessageGroupTypeForm(ConfigurationForm):
     class Meta:
         model = MessageGroupType
         fields = (
-            "code", "name", "parent", "exclusive_membership",
-            "allowed_message_types", "is_active",
+            "code",
+            "name",
+            "parent",
+            "exclusive_membership",
+            "allowed_message_types",
+            "is_active",
         )
         widgets: ClassVar[dict[str, object]] = {
             "allowed_message_types": DualListSelectMultiple,
@@ -70,7 +74,13 @@ class MessageGroupForm(ConfigurationForm):
     class Meta:
         model = MessageGroup
         fields = (
-            "code", "name", "primary_group", "parent", "group_type", "sectors", "is_active",
+            "code",
+            "name",
+            "primary_group",
+            "parent",
+            "group_type",
+            "sectors",
+            "is_active",
         )
         widgets: ClassVar[dict[str, object]] = {"sectors": DualListSelectMultiple}
 
@@ -79,9 +89,17 @@ class MessageTypeForm(ConfigurationForm):
     class Meta:
         model = MessageType
         fields = (
-            "code", "name", "default_content_type", "view_mode", "menu_view",
-            "display_at_logon", "requires_approval", "searchable", "has_subtypes",
-            "has_effective_date", "is_active",
+            "code",
+            "name",
+            "default_content_type",
+            "view_mode",
+            "menu_view",
+            "display_at_logon",
+            "requires_approval",
+            "searchable",
+            "has_subtypes",
+            "has_effective_date",
+            "is_active",
         )
 
 
@@ -89,9 +107,14 @@ class MessageSubTypeForm(ConfigurationForm):
     class Meta:
         model = MessageSubType
         fields = (
-            "code", "name", "primary_group", "message_type",
-            "minimum_validity_days", "maximum_validity_days",
-            "email_distributions", "is_active",
+            "code",
+            "name",
+            "primary_group",
+            "message_type",
+            "minimum_validity_days",
+            "maximum_validity_days",
+            "email_distributions",
+            "is_active",
         )
         widgets: ClassVar[dict[str, object]] = {
             "email_distributions": DualListSelectMultiple,

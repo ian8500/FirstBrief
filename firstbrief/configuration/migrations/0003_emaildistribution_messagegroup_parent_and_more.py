@@ -6,7 +6,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("configuration", "0002_alter_messagegroup_id_alter_messagetype_id_and_more"),
     ]

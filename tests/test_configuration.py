@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import TypedDict
+
 import pytest
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
@@ -24,8 +26,15 @@ from firstbrief.identity.services import MANAGE_CONFIGURATION
 pytestmark = pytest.mark.django_db
 
 
+class Taxonomy(TypedDict):
+    site: Site
+    pmg: PrimaryMessageGroup
+    group_type: MessageGroupType
+    group: MessageGroup
+
+
 @pytest.fixture
-def taxonomy() -> dict[str, object]:
+def taxonomy() -> Taxonomy:
     site = Site.objects.create(code="central", name="Central")
     pmg = PrimaryMessageGroup.objects.create(code="central-pmg", name="Central PMG", site=site)
     group_type = MessageGroupType.objects.create(
@@ -37,7 +46,7 @@ def taxonomy() -> dict[str, object]:
     return {"site": site, "pmg": pmg, "group_type": group_type, "group": group}
 
 
-def test_hierarchies_reject_cycles_and_cross_primary_group(taxonomy: dict[str, object]) -> None:
+def test_hierarchies_reject_cycles_and_cross_primary_group(taxonomy: Taxonomy) -> None:
     group = taxonomy["group"]
     assert isinstance(group, MessageGroup)
     child = MessageGroup.objects.create(
@@ -57,7 +66,7 @@ def test_hierarchies_reject_cycles_and_cross_primary_group(taxonomy: dict[str, o
 
 
 def test_group_deletion_is_protected_for_children_and_memberships(
-    taxonomy: dict[str, object],
+    taxonomy: Taxonomy,
 ) -> None:
     group = taxonomy["group"]
     assert isinstance(group, MessageGroup)
@@ -76,14 +85,14 @@ def test_group_deletion_is_protected_for_children_and_memberships(
         member_group.delete()
 
 
-def test_group_type_deletion_is_protected(taxonomy: dict[str, object]) -> None:
+def test_group_type_deletion_is_protected(taxonomy: Taxonomy) -> None:
     group_type = taxonomy["group_type"]
     assert isinstance(group_type, MessageGroupType)
     with pytest.raises(ProtectedError):
         group_type.delete()
 
 
-def test_exclusive_group_type_blocks_second_membership(taxonomy: dict[str, object]) -> None:
+def test_exclusive_group_type_blocks_second_membership(taxonomy: Taxonomy) -> None:
     group = taxonomy["group"]
     group_type = taxonomy["group_type"]
     assert isinstance(group, MessageGroup)
@@ -97,10 +106,8 @@ def test_exclusive_group_type_blocks_second_membership(taxonomy: dict[str, objec
     assert list(user.message_groups.all()) == [group]
 
 
-def test_subtype_validity_and_distribution_protection(taxonomy: dict[str, object]) -> None:
-    message_type = MessageType.objects.create(
-        code="notice", name="Notice", has_subtypes=True
-    )
+def test_subtype_validity_and_distribution_protection(taxonomy: Taxonomy) -> None:
+    message_type = MessageType.objects.create(code="notice", name="Notice", has_subtypes=True)
     distribution = EmailDistribution.objects.create(
         code="ops", name="Operations", email_address="ops@example.test"
     )
@@ -127,7 +134,7 @@ def test_subtype_validity_and_distribution_protection(taxonomy: dict[str, object
         )
 
 
-def test_subtype_requires_enabled_message_type(taxonomy: dict[str, object]) -> None:
+def test_subtype_requires_enabled_message_type(taxonomy: Taxonomy) -> None:
     message_type = MessageType.objects.create(code="plain", name="Plain")
     subtype = MessageSubType(
         code="not-allowed",
@@ -139,7 +146,7 @@ def test_subtype_requires_enabled_message_type(taxonomy: dict[str, object]) -> N
         subtype.full_clean()
 
 
-def test_sector_immutable_fields_are_disabled_on_edit(taxonomy: dict[str, object]) -> None:
+def test_sector_immutable_fields_are_disabled_on_edit(taxonomy: Taxonomy) -> None:
     sector = Sector.objects.create(
         code="s1", name="Sector One", identification="ID-1", primary_group=taxonomy["pmg"]
     )
@@ -151,7 +158,7 @@ def test_sector_immutable_fields_are_disabled_on_edit(taxonomy: dict[str, object
 
 
 def test_configuration_ui_requires_permission_and_audits_create(
-    client: Client, taxonomy: dict[str, object]
+    client: Client, taxonomy: Taxonomy
 ) -> None:
     user = User.objects.create_user(username="config-admin", password="Safe-test-42!")
     client.force_login(user)
@@ -175,9 +182,7 @@ def test_configuration_ui_requires_permission_and_audits_create(
     assert AuditEvent.objects.filter(action="configuration.created").exists()
 
 
-def test_configuration_form_shows_validation_summary(
-    client: Client, taxonomy: dict[str, object]
-) -> None:
+def test_configuration_form_shows_validation_summary(client: Client, taxonomy: Taxonomy) -> None:
     user = User.objects.create_superuser(username="root", password="Safe-test-42!")
     client.force_login(user)
     response = client.post("/configuration/sectors/new/", {"code": ""})
@@ -185,13 +190,11 @@ def test_configuration_form_shows_validation_summary(
     assert b"There is a problem" in response.content
 
 
-def test_dual_list_widget_renders_in_configuration_form(
-    client: Client, taxonomy: dict[str, object]
-) -> None:
+def test_dual_list_widget_renders_in_configuration_form(client: Client, taxonomy: Taxonomy) -> None:
     user = User.objects.create_superuser(username="widget-admin", password="Safe-test-42!")
     client.force_login(user)
     response = client.get("/configuration/group-types/new/")
     assert response.status_code == 200
-    assert b'data-dual-list' in response.content
+    assert b"data-dual-list" in response.content
     assert b"Add all" in response.content
     assert b"Remove all" in response.content

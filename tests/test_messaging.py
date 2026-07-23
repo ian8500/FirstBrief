@@ -2,8 +2,11 @@ from __future__ import annotations
 
 import hashlib
 import io
+import subprocess
 import uuid
 from datetime import timedelta
+from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
@@ -34,7 +37,7 @@ from firstbrief.messaging.models import (
     MessageStatusHistory,
     MessageVersion,
 )
-from firstbrief.messaging.scanning import ScanResult
+from firstbrief.messaging.scanning import ClamAvScanner, ScanResult, UnavailableScanner, get_scanner
 from firstbrief.messaging.services import (
     StaleMessageError,
     approve_message,
@@ -239,9 +242,7 @@ def test_create_enforces_dates_content_and_audience(messaging_data: dict[str, An
 
     values["release_at"] = now + timedelta(hours=1)
     values["message_id"] = "INVALID-RIGHTS"
-    values["group_rights"] = {
-        messaging_data["group"].pk: MessageAudienceRight.Right.PROHIBITED
-    }
+    values["group_rights"] = {messaging_data["group"].pk: MessageAudienceRight.Right.PROHIBITED}
     with pytest.raises(ValidationError, match="Allowed or Mandatory"):
         create_message(**values)
 
@@ -264,9 +265,7 @@ def test_subtype_must_match_selected_primary_message_group(
             effective_at=now + timedelta(hours=2),
             expiry_at=now + timedelta(days=2),
             archive_on_expiry=True,
-            group_rights={
-                messaging_data["group"].pk: MessageAudienceRight.Right.ALLOWED
-            },
+            group_rights={messaging_data["group"].pk: MessageAudienceRight.Right.ALLOWED},
         )
 
 
@@ -342,9 +341,7 @@ def test_approval_adjusts_overdue_draft_release_without_detaching_files(
 
 def test_assigned_approver_is_enforced(messaging_data: dict[str, Any]) -> None:
     message = create_instruction(messaging_data)
-    capability = Capability.objects.create(
-        codename=APPROVE_MESSAGES, name="Approve messages"
-    )
+    capability = Capability.objects.create(codename=APPROVE_MESSAGES, name="Approve messages")
     assigned = User.objects.create_user(username="assigned", password="Safe-test-42!")
     outsider = User.objects.create_user(username="outsider", password="Safe-test-42!")
     assigned.direct_capabilities.add(capability)
@@ -399,9 +396,7 @@ def test_optimistic_locking_and_command_idempotency(messaging_data: dict[str, An
             release_at=repeated.current_version.release_at,
             effective_at=None,
             expiry_at=repeated.current_version.expiry_at,
-            group_rights={
-                messaging_data["group"].pk: MessageAudienceRight.Right.ALLOWED
-            },
+            group_rights={messaging_data["group"].pk: MessageAudienceRight.Right.ALLOWED},
             reason="Stale edit",
         )
 
@@ -617,9 +612,7 @@ def test_message_ui_permission_filters_and_accessible_date_inputs(
     client.force_login(ordinary)
     assert client.get("/messages/manage/").status_code == 403
 
-    create_capability = Capability.objects.create(
-        codename=CREATE_MESSAGES, name="Create messages"
-    )
+    create_capability = Capability.objects.create(codename=CREATE_MESSAGES, name="Create messages")
     ordinary.direct_capabilities.add(create_capability)
     ordinary.message_groups.add(messaging_data["group"])
     response = client.get("/messages/manage/new/")
@@ -647,9 +640,7 @@ def test_service_permission_is_deny_by_default(messaging_data: dict[str, Any]) -
             effective_at=None,
             expiry_at=now + timedelta(hours=2),
             archive_on_expiry=True,
-            group_rights={
-                messaging_data["group"].pk: MessageAudienceRight.Right.ALLOWED
-            },
+            group_rights={messaging_data["group"].pk: MessageAudienceRight.Right.ALLOWED},
         )
 
 
@@ -678,9 +669,7 @@ def test_author_cannot_target_or_enumerate_another_site(
             effective_at=None,
             expiry_at=now + timedelta(hours=2),
             archive_on_expiry=True,
-            group_rights={
-                messaging_data["other_group"].pk: MessageAudienceRight.Right.ALLOWED
-            },
+            group_rights={messaging_data["other_group"].pk: MessageAudienceRight.Right.ALLOWED},
         )
 
     client.force_login(author)
@@ -696,3 +685,220 @@ def test_seeded_lifecycle_capability_names_are_distinct() -> None:
         "approve-messages",
         "manage-messages",
     }
+
+
+def test_message_create_list_detail_and_revision_views(
+    client: Client, messaging_data: dict[str, Any]
+) -> None:
+    actor = messaging_data["actor"]
+    client.force_login(actor)
+    now = timezone.now()
+    response = client.post(
+        "/messages/manage/new/",
+        {
+            "message_id": "UI-BOTD",
+            "kind": Message.Kind.BOTD,
+            "message_type": messaging_data["botd_type"].pk,
+            "title": "UI briefing",
+            "summary": "Created through the accessible form",
+            "text_content": "Initial content",
+            "release_at": (now + timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M"),
+            "expiry_at": (now + timedelta(days=1)).strftime("%Y-%m-%dT%H:%M"),
+            "archive_on_expiry": "on",
+            "allowed_groups": [messaging_data["group"].pk],
+        },
+    )
+    assert response.status_code == 302
+    message = Message.objects.get(message_id="UI-BOTD")
+
+    listing = client.get("/messages/manage/", {"group": messaging_data["group"].pk})
+    assert listing.status_code == 200
+    assert b"UI-BOTD" in listing.content
+    detail = client.get(f"/messages/manage/{message.pk}/")
+    assert detail.status_code == 200
+    assert b"Initial content" in detail.content
+    edit = client.get(f"/messages/manage/{message.pk}/edit/")
+    assert edit.status_code == 200
+
+    version = message.current_version
+    revised = client.post(
+        f"/messages/manage/{message.pk}/edit/",
+        {
+            "message_id": message.message_id,
+            "kind": message.kind,
+            "message_type": message.message_type_id,
+            "title": "UI briefing revised",
+            "summary": "Updated",
+            "text_content": "Revised content",
+            "release_at": version.release_at.strftime("%Y-%m-%dT%H:%M"),
+            "expiry_at": version.expiry_at.strftime("%Y-%m-%dT%H:%M"),
+            "archive_on_expiry": "on",
+            "allowed_groups": [messaging_data["group"].pk],
+            "reason": "Corrected wording",
+        },
+    )
+    assert revised.status_code == 302
+    message.refresh_from_db()
+    assert message.current_version.title == "UI briefing revised"
+    assert message.current_version_number == 2
+
+
+def test_message_action_view_handles_success_validation_and_unknown_command(
+    client: Client, messaging_data: dict[str, Any]
+) -> None:
+    actor = messaging_data["actor"]
+    message = create_botd(messaging_data, "ACTION-BOTD")
+    client.force_login(actor)
+    response = client.post(
+        f"/messages/manage/{message.pk}/withdraw/",
+        {
+            "expected_version": message.lock_version,
+            "idempotency_key": uuid.uuid4(),
+            "reason": "Operational withdrawal",
+        },
+        follow=True,
+    )
+    assert response.status_code == 200
+    message.refresh_from_db()
+    assert message.status == Message.Status.WITHDRAWN
+    assert b"completed" in response.content
+
+    invalid = client.post(
+        f"/messages/manage/{message.pk}/archive/",
+        {
+            "expected_version": "not-an-integer",
+            "idempotency_key": "not-a-uuid",
+        },
+        follow=True,
+    )
+    assert invalid.status_code == 200
+    assert b"invalid or stale" in invalid.content
+    assert client.post(f"/messages/manage/{message.pk}/unknown/").status_code == 404
+
+
+def test_message_list_filters_are_site_scoped(
+    client: Client, messaging_data: dict[str, Any]
+) -> None:
+    capability = Capability.objects.create(codename=MANAGE_MESSAGES, name="Manage messages")
+    user = User.objects.create_user(
+        username="scoped-manager",
+        password="Safe-test-42!",
+        site=messaging_data["site"],
+    )
+    user.direct_capabilities.add(capability)
+    client.force_login(user)
+    response = client.get("/messages/manage/", {"group": "bad", "subtype": "bad"})
+    assert response.status_code == 200
+    assert b"Remote Operations" not in response.content
+
+
+def test_successful_service_revision_increments_version_and_audits(
+    messaging_data: dict[str, Any],
+) -> None:
+    message = create_botd(messaging_data, "REVISE-BOTD")
+    version = message.current_version
+    revised = revise_message(
+        actor=messaging_data["actor"],
+        message=message,
+        expected_version=message.lock_version,
+        title="Revised title",
+        summary="Revised summary",
+        text_content="Revised content",
+        release_at=version.release_at,
+        effective_at=None,
+        expiry_at=version.expiry_at,
+        group_rights={messaging_data["group"].pk: MessageAudienceRight.Right.MANDATORY},
+        reason="Operational correction",
+    )
+    assert revised.lock_version == 2
+    assert revised.current_version_number == 2
+    assert revised.current_version.title == "Revised title"
+    assert revised.audience_rights.get().right == MessageAudienceRight.Right.MANDATORY
+    assert AuditEvent.objects.filter(action="message.revised").exists()
+
+
+def test_scanner_adapters_fail_closed_and_report_clamav_results(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "sample.pdf"
+    assert not UnavailableScanner().scan(path).clean
+
+    monkeypatch.setattr(
+        "firstbrief.messaging.scanning.subprocess.run",
+        lambda *args, **kwargs: SimpleNamespace(
+            returncode=0,
+            stdout="sample.pdf: OK",
+            stderr="",
+        ),
+    )
+    clean = ClamAvScanner().scan(path)
+    assert clean.clean
+    assert "OK" in clean.detail
+
+    def unavailable(*args: Any, **kwargs: Any) -> None:
+        raise subprocess.TimeoutExpired("clamdscan", 60)
+
+    monkeypatch.setattr("firstbrief.messaging.scanning.subprocess.run", unavailable)
+    failed = ClamAvScanner().scan(path)
+    assert not failed.clean
+    assert "TimeoutExpired" in failed.detail
+
+
+def test_scanner_factory_uses_configured_adapter() -> None:
+    with override_settings(
+        FIRSTBRIEF_MALWARE_SCANNER="firstbrief.messaging.scanning.UnavailableScanner"
+    ):
+        assert isinstance(get_scanner(), UnavailableScanner)
+
+
+def test_pdf_validation_rejects_size_type_and_structure(
+    messaging_data: dict[str, Any], tmp_path: Any
+) -> None:
+    message = create_instruction(messaging_data, attach_files=False)
+    policy = MessagePolicy.load()
+    policy.maximum_pdf_bytes = 4
+    policy.save()
+    with override_settings(MEDIA_ROOT=tmp_path):
+        with pytest.raises(ValidationError, match="exceeds"):
+            store_scanned_pdf(
+                version=message.current_version,
+                role=FileAsset.Role.DISPLAY,
+                upload=make_pdf("large.pdf"),
+                actor=messaging_data["actor"],
+                scanner=CleanScanner(),
+            )
+
+        policy.maximum_pdf_bytes = 1024 * 1024
+        policy.save()
+        with pytest.raises(ValidationError, match="Only PDF"):
+            store_scanned_pdf(
+                version=message.current_version,
+                role=FileAsset.Role.DISPLAY,
+                upload=SimpleUploadedFile("fake.pdf", b"not a pdf", content_type="text/plain"),
+                actor=messaging_data["actor"],
+                scanner=CleanScanner(),
+            )
+        with pytest.raises(ValidationError, match="structurally valid"):
+            store_scanned_pdf(
+                version=message.current_version,
+                role=FileAsset.Role.DISPLAY,
+                upload=SimpleUploadedFile(
+                    "fake.pdf", b"%PDF-1.4\nbroken\n%%EOF", content_type="application/pdf"
+                ),
+                actor=messaging_data["actor"],
+                scanner=CleanScanner(),
+            )
+
+
+def test_access_resolution_allows_positive_right_and_superuser(
+    messaging_data: dict[str, Any],
+) -> None:
+    message = create_botd(messaging_data, "ACCESS-BOTD")
+    reader = User.objects.create_user(username="positive-reader", password="Safe-test-42!")
+    reader.message_groups.add(messaging_data["group"])
+    assert require_message_access(message, reader) == MessageAudienceRight.Right.ALLOWED
+    assert (
+        require_message_access(message, messaging_data["actor"])
+        == MessageAudienceRight.Right.ALLOWED
+    )

@@ -236,9 +236,7 @@ ACTION_MAP: dict[str, Any] = {
 
 @login_required
 @require_http_methods(["POST"])
-def message_action(
-    request: HttpRequest, message_pk: uuid.UUID, command: str
-) -> HttpResponse:
+def message_action(request: HttpRequest, message_pk: uuid.UUID, command: str) -> HttpResponse:
     actor = actor_for(request)
     require_any_message_permission(actor)
     message = get_object_or_404(scoped_messages(actor), pk=message_pk)
