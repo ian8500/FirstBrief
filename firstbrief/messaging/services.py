@@ -37,9 +37,7 @@ class StaleMessageError(ValidationError):
     pass
 
 
-def _replayed_command(
-    message: Message, idempotency_key: uuid.UUID, command: str
-) -> Message | None:
+def _replayed_command(message: Message, idempotency_key: uuid.UUID, command: str) -> Message | None:
     existing = LifecycleCommand.objects.filter(
         message=message, idempotency_key=idempotency_key
     ).first()
@@ -80,9 +78,7 @@ def _validate_rights(
             {"subtype": "Subtype must belong to a selected Primary Message Group."}
         )
     return [
-        MessageAudienceRight(
-            message=message, message_group=groups[group_id], right=right
-        )
+        MessageAudienceRight(message=message, message_group=groups[group_id], right=right)
         for group_id, right in group_rights.items()
     ]
 
@@ -118,9 +114,7 @@ def create_message(
     approvers: list[User] | None = None,
 ) -> Message:
     require_capability(actor, CREATE_MESSAGES)
-    _validate_future_dates(
-        release_at=release_at, effective_at=effective_at, expiry_at=expiry_at
-    )
+    _validate_future_dates(release_at=release_at, effective_at=effective_at, expiry_at=expiry_at)
     message = Message(
         message_id=message_id,
         kind=kind,
@@ -227,9 +221,7 @@ def revise_message(
     rights = _validate_rights(actor=actor, message=locked, group_rights=group_rights)
     locked.audience_rights.all().delete()
     MessageAudienceRight.objects.bulk_create(rights)
-    updated = Message.objects.filter(
-        pk=locked.pk, lock_version=expected_version
-    ).update(
+    updated = Message.objects.filter(pk=locked.pk, lock_version=expected_version).update(
         current_version_number=replacement.version_number,
         lock_version=F("lock_version") + 1,
     )
@@ -272,9 +264,9 @@ def _transition(
             f"Cannot {command.replace('-', ' ')} a message in {locked.get_status_display()}."
         )
     from_status = locked.status
-    updated = Message.objects.filter(
-        pk=locked.pk, lock_version=expected_version
-    ).update(status=target_status, lock_version=F("lock_version") + 1)
+    updated = Message.objects.filter(pk=locked.pk, lock_version=expected_version).update(
+        status=target_status, lock_version=F("lock_version") + 1
+    )
     if updated != 1:
         raise StaleMessageError("Message was changed concurrently; refresh and retry.")
     locked.refresh_from_db()

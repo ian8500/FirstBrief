@@ -73,10 +73,7 @@ def entry_for(kind: str) -> RegistryEntry:
 @login_required
 def index(request: HttpRequest) -> HttpResponse:
     actor_for(request)
-    sections = [
-        (kind, entry, entry.model.objects.all())
-        for kind, entry in REGISTRY.items()
-    ]
+    sections = [(kind, entry, entry.model.objects.all()) for kind, entry in REGISTRY.items()]
     return render(
         request,
         "configuration/index.html",
@@ -102,7 +99,8 @@ def edit(request: HttpRequest, kind: str, object_id: int | None = None) -> HttpR
         messages.success(request, f"{entry.label.rstrip('s')} saved.")
         return redirect("configuration:index")
     return render(
-        request, "configuration/form.html",
+        request,
+        "configuration/form.html",
         {"form": form, "entry": entry, "is_edit": bool(instance)},
     )
 
@@ -122,6 +120,7 @@ def delete(request: HttpRequest, kind: str, object_id: int) -> HttpResponse:
             messages.success(request, f"{entry.label.rstrip('s')} deleted successfully.")
         return redirect("configuration:index")
     return render(
-        request, "configuration/confirm_delete.html",
+        request,
+        "configuration/confirm_delete.html",
         {"entry": entry, "object": instance},
     )

@@ -187,9 +187,7 @@ class MessageSubType(ActiveReference):
     primary_group = models.ForeignKey(
         PrimaryMessageGroup, on_delete=models.PROTECT, related_name="message_subtypes"
     )
-    message_type = models.ForeignKey(
-        MessageType, on_delete=models.PROTECT, related_name="subtypes"
-    )
+    message_type = models.ForeignKey(MessageType, on_delete=models.PROTECT, related_name="subtypes")
     minimum_validity_days = models.PositiveIntegerField(
         default=0, validators=[MinValueValidator(0)]
     )

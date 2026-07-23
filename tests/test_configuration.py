@@ -98,9 +98,7 @@ def test_exclusive_group_type_blocks_second_membership(taxonomy: dict[str, objec
 
 
 def test_subtype_validity_and_distribution_protection(taxonomy: dict[str, object]) -> None:
-    message_type = MessageType.objects.create(
-        code="notice", name="Notice", has_subtypes=True
-    )
+    message_type = MessageType.objects.create(code="notice", name="Notice", has_subtypes=True)
     distribution = EmailDistribution.objects.create(
         code="ops", name="Operations", email_address="ops@example.test"
     )
@@ -192,6 +190,6 @@ def test_dual_list_widget_renders_in_configuration_form(
     client.force_login(user)
     response = client.get("/configuration/group-types/new/")
     assert response.status_code == 200
-    assert b'data-dual-list' in response.content
+    assert b"data-dual-list" in response.content
     assert b"Add all" in response.content
     assert b"Remove all" in response.content

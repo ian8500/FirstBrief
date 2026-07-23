@@ -239,9 +239,7 @@ def test_create_enforces_dates_content_and_audience(messaging_data: dict[str, An
 
     values["release_at"] = now + timedelta(hours=1)
     values["message_id"] = "INVALID-RIGHTS"
-    values["group_rights"] = {
-        messaging_data["group"].pk: MessageAudienceRight.Right.PROHIBITED
-    }
+    values["group_rights"] = {messaging_data["group"].pk: MessageAudienceRight.Right.PROHIBITED}
     with pytest.raises(ValidationError, match="Allowed or Mandatory"):
         create_message(**values)
 
@@ -264,9 +262,7 @@ def test_subtype_must_match_selected_primary_message_group(
             effective_at=now + timedelta(hours=2),
             expiry_at=now + timedelta(days=2),
             archive_on_expiry=True,
-            group_rights={
-                messaging_data["group"].pk: MessageAudienceRight.Right.ALLOWED
-            },
+            group_rights={messaging_data["group"].pk: MessageAudienceRight.Right.ALLOWED},
         )
 
 
@@ -342,9 +338,7 @@ def test_approval_adjusts_overdue_draft_release_without_detaching_files(
 
 def test_assigned_approver_is_enforced(messaging_data: dict[str, Any]) -> None:
     message = create_instruction(messaging_data)
-    capability = Capability.objects.create(
-        codename=APPROVE_MESSAGES, name="Approve messages"
-    )
+    capability = Capability.objects.create(codename=APPROVE_MESSAGES, name="Approve messages")
     assigned = User.objects.create_user(username="assigned", password="Safe-test-42!")
     outsider = User.objects.create_user(username="outsider", password="Safe-test-42!")
     assigned.direct_capabilities.add(capability)
@@ -399,9 +393,7 @@ def test_optimistic_locking_and_command_idempotency(messaging_data: dict[str, An
             release_at=repeated.current_version.release_at,
             effective_at=None,
             expiry_at=repeated.current_version.expiry_at,
-            group_rights={
-                messaging_data["group"].pk: MessageAudienceRight.Right.ALLOWED
-            },
+            group_rights={messaging_data["group"].pk: MessageAudienceRight.Right.ALLOWED},
             reason="Stale edit",
         )
 
@@ -617,9 +609,7 @@ def test_message_ui_permission_filters_and_accessible_date_inputs(
     client.force_login(ordinary)
     assert client.get("/messages/manage/").status_code == 403
 
-    create_capability = Capability.objects.create(
-        codename=CREATE_MESSAGES, name="Create messages"
-    )
+    create_capability = Capability.objects.create(codename=CREATE_MESSAGES, name="Create messages")
     ordinary.direct_capabilities.add(create_capability)
     ordinary.message_groups.add(messaging_data["group"])
     response = client.get("/messages/manage/new/")
@@ -647,9 +637,7 @@ def test_service_permission_is_deny_by_default(messaging_data: dict[str, Any]) -
             effective_at=None,
             expiry_at=now + timedelta(hours=2),
             archive_on_expiry=True,
-            group_rights={
-                messaging_data["group"].pk: MessageAudienceRight.Right.ALLOWED
-            },
+            group_rights={messaging_data["group"].pk: MessageAudienceRight.Right.ALLOWED},
         )
 
 
@@ -678,9 +666,7 @@ def test_author_cannot_target_or_enumerate_another_site(
             effective_at=None,
             expiry_at=now + timedelta(hours=2),
             archive_on_expiry=True,
-            group_rights={
-                messaging_data["other_group"].pk: MessageAudienceRight.Right.ALLOWED
-            },
+            group_rights={messaging_data["other_group"].pk: MessageAudienceRight.Right.ALLOWED},
         )
 
     client.force_login(author)

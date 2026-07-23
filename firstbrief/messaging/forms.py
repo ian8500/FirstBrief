@@ -75,12 +75,8 @@ class MessageCreateForm(forms.Form):
             cast(
                 "forms.ModelMultipleChoiceField[MessageGroup]", self.fields[field_name]
             ).queryset = groups
-        cast(
-            "forms.ModelChoiceField[MessageSubType]", self.fields["subtype"]
-        ).queryset = subtypes
-        cast(
-            "forms.ModelMultipleChoiceField[User]", self.fields["approvers"]
-        ).queryset = approvers
+        cast("forms.ModelChoiceField[MessageSubType]", self.fields["subtype"]).queryset = subtypes
+        cast("forms.ModelMultipleChoiceField[User]", self.fields["approvers"]).queryset = approvers
 
     def clean(self) -> dict[str, Any]:
         cleaned = super().clean() or {}
@@ -112,9 +108,7 @@ class MessageCreateForm(forms.Form):
         if not mandatory and not allowed:
             self.add_error(None, "Select at least one Mandatory or Allowed group.")
         if subtype and not cleaned.get("all_sites"):
-            selected_pmgs = {
-                group.primary_group_id for group in mandatory | allowed | prohibited
-            }
+            selected_pmgs = {group.primary_group_id for group in mandatory | allowed | prohibited}
             if subtype.primary_group_id not in selected_pmgs:
                 self.add_error(
                     "subtype",
@@ -124,10 +118,7 @@ class MessageCreateForm(forms.Form):
 
     def group_rights(self) -> dict[int, str]:
         if self.cleaned_data["all_sites"]:
-            return {
-                group.pk: MessageAudienceRight.Right.ALLOWED
-                for group in self.available_groups
-            }
+            return {group.pk: MessageAudienceRight.Right.ALLOWED for group in self.available_groups}
         rights: dict[int, str] = {}
         for field, right in (
             ("mandatory_groups", MessageAudienceRight.Right.MANDATORY),

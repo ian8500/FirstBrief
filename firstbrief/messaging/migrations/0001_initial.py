@@ -8,7 +8,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     initial = True
 
     dependencies = [
@@ -445,9 +444,7 @@ class Migration(migrations.Migration):
         ),
         migrations.AddIndex(
             model_name="message",
-            index=models.Index(
-                fields=["status", "updated_at"], name="message_status_updated"
-            ),
+            index=models.Index(fields=["status", "updated_at"], name="message_status_updated"),
         ),
         migrations.AddConstraint(
             model_name="lifecyclecommand",
