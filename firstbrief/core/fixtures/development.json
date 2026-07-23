@@ -1,0 +1,12 @@
+[
+  {
+    "model": "core.systemsetting",
+    "pk": 1,
+    "fields": {
+      "key": "site-timezone",
+      "value": "Europe/London",
+      "description": "Display timezone used by the development environment",
+      "updated_at": "2026-07-23T00:00:00Z"
+    }
+  }
+]

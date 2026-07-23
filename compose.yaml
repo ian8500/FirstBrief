@@ -1,0 +1,101 @@
+name: firstbrief
+
+services:
+  postgres:
+    image: postgres:16.14-alpine
+    environment:
+      POSTGRES_DB: firstbrief
+      POSTGRES_USER: firstbrief
+      POSTGRES_PASSWORD: firstbrief-development-only
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U firstbrief -d firstbrief"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7.4.5-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    volumes:
+      - redis-data:/data
+
+  web:
+    build:
+      context: .
+      target: production
+    environment: &application-environment
+      DJANGO_SETTINGS_MODULE: firstbrief.settings.production
+      DJANGO_ENV: production
+      DJANGO_SECRET_KEY: "compose-only-4!aR8-xQ2_mZ7@vK9-pL3_tN6-sW1+cD5=eF0.gH7"
+      DJANGO_ALLOWED_HOSTS: localhost,127.0.0.1
+      DJANGO_CSRF_TRUSTED_ORIGINS: http://localhost:8001
+      DJANGO_SECURE_SSL_REDIRECT: "false"
+      DATABASE_URL: postgresql://firstbrief:firstbrief-development-only@postgres:5432/firstbrief
+      CACHE_URL: redis://redis:6379/2
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/1
+    command:
+      - /bin/sh
+      - -c
+      - python manage.py migrate --noinput && gunicorn firstbrief.wsgi:application --bind=0.0.0.0:8000 --workers=2 --access-logfile=- --error-logfile=-
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "${FIRSTBRIEF_PORT:-8001}:8000"
+
+  worker:
+    build:
+      context: .
+      target: production
+    environment: *application-environment
+    command: ["celery", "--app=firstbrief", "worker", "--loglevel=INFO", "--queues=default"]
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "celery --app=firstbrief inspect ping --timeout=5 | grep -q pong",
+        ]
+      interval: 30s
+      timeout: 10s
+      start_period: 15s
+      retries: 3
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  test:
+    profiles: ["test"]
+    build:
+      context: .
+      target: development
+    environment:
+      DJANGO_SETTINGS_MODULE: firstbrief.settings.test
+      DJANGO_ENV: test
+      DJANGO_SECRET_KEY: "compose-test-only-4!aR8-xQ2_mZ7@vK9-pL3_tN6-sW1+cD5=eF0"
+      DJANGO_ALLOWED_HOSTS: testserver,localhost
+      DJANGO_SECURE_SSL_REDIRECT: "false"
+      DATABASE_URL: postgresql://firstbrief:firstbrief-development-only@postgres:5432/firstbrief
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/1
+    command: ["python", "-m", "pytest", "--cov=firstbrief", "--cov-report=term-missing"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+volumes:
+  postgres-data:
+  redis-data:

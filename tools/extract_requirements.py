@@ -12,7 +12,6 @@ from pathlib import Path
 
 from pypdf import PdfReader
 
-
 REQUIREMENT_ID = re.compile(r"(?m)^FR-(?:[A-Z]\d-\d{2}|[A-Z]\d{2})\s*$")
 DETAIL_PAGES = (*range(7, 31), *range(36, 53))
 SUPPLEMENTAL = {
@@ -101,7 +100,9 @@ def parse_pdf(pdf_path: Path) -> tuple[list[Requirement], int]:
         role, need, outcome = parse_story(block)
         owner = field(block, "Requirement Owner", "Source")
         source = field(block, "Source", "Acceptance Criteria:")
-        criteria_text = block.split("Acceptance Criteria:", 1)[1] if "Acceptance Criteria:" in block else ""
+        criteria_text = (
+            block.split("Acceptance Criteria:", 1)[1] if "Acceptance Criteria:" in block else ""
+        )
         criteria_text = re.sub(r"\[\[SOURCE_PAGE:\d+]]", "", criteria_text)
         criteria = normalise(criteria_text)
 
@@ -126,7 +127,11 @@ def parse_pdf(pdf_path: Path) -> tuple[list[Requirement], int]:
 def write_register(requirements: list[Requirement], output: Path) -> None:
     output.parent.mkdir(parents=True, exist_ok=True)
     with output.open("w", encoding="utf-8", newline="") as handle:
-        writer = csv.DictWriter(handle, fieldnames=list(Requirement.__annotations__))
+        writer = csv.DictWriter(
+            handle,
+            fieldnames=list(Requirement.__annotations__),
+            lineterminator="\r\n",
+        )
         writer.writeheader()
         for requirement in requirements:
             writer.writerow(requirement.__dict__)
@@ -146,40 +151,82 @@ def write_traceability(requirements: list[Requirement], output: Path) -> None:
         "status",
         "notes",
     ]
+    existing: dict[str, dict[str, str]] = {}
+    if output.exists():
+        with output.open(encoding="utf-8", newline="") as handle:
+            existing = {
+                row["requirement_id"]: row
+                for row in csv.DictReader(handle)
+                if row.get("requirement_id")
+            }
+
     with output.open("w", encoding="utf-8", newline="") as handle:
-        writer = csv.DictWriter(handle, fieldnames=fields)
+        writer = csv.DictWriter(handle, fieldnames=fields, lineterminator="\r\n")
         writer.writeheader()
         for requirement in requirements:
             design_component = component_for(requirement.requirement_id)
             writer.writerow(
-                {
-                    "requirement_id": requirement.requirement_id,
-                    "theme": requirement.theme,
-                    "source_pages": requirement.source_pages,
-                    "source_reference": requirement.source_reference,
-                    "design_component": design_component,
-                    "code_path": "",
-                    "automated_test": "",
-                    "manual_test": "",
-                    "status": "Designed",
-                    "notes": "Source inventoried and allocated to a bounded module; implementation evidence is added by subsequent prompts.",
-                }
+                preserve_evidence(
+                    {
+                        "requirement_id": requirement.requirement_id,
+                        "theme": requirement.theme,
+                        "source_pages": requirement.source_pages,
+                        "source_reference": requirement.source_reference,
+                        "design_component": design_component,
+                        "code_path": "",
+                        "automated_test": "",
+                        "manual_test": "",
+                        "status": "Designed",
+                        "notes": (
+                            "Source inventoried and allocated to a bounded module; "
+                            "implementation evidence is added by subsequent prompts."
+                        ),
+                    },
+                    existing,
+                )
             )
         for requirement_id, design_component in SUPPLEMENTAL.items():
             writer.writerow(
-                {
-                    "requirement_id": requirement_id,
-                    "theme": "Proposed requirement",
-                    "source_pages": "Implementation guide",
-                    "source_reference": "FirstBrief Codex Implementation Blueprint",
-                    "design_component": design_component,
-                    "code_path": "",
-                    "automated_test": "",
-                    "manual_test": "",
-                    "status": "Proposed",
-                    "notes": "Gap-closing requirement pending formal product/security/records approval.",
-                }
+                preserve_evidence(
+                    {
+                        "requirement_id": requirement_id,
+                        "theme": "Proposed requirement",
+                        "source_pages": "Implementation guide",
+                        "source_reference": "FirstBrief Codex Implementation Blueprint",
+                        "design_component": design_component,
+                        "code_path": "",
+                        "automated_test": "",
+                        "manual_test": "",
+                        "status": "Proposed",
+                        "notes": (
+                            "Gap-closing requirement pending formal "
+                            "product/security/records approval."
+                        ),
+                    },
+                    existing,
+                )
             )
+
+
+def preserve_evidence(
+    default_row: dict[str, str],
+    existing: dict[str, dict[str, str]],
+) -> dict[str, str]:
+    previous = existing.get(default_row["requirement_id"])
+    if previous is None:
+        return default_row
+
+    for field_name in (
+        "design_component",
+        "code_path",
+        "automated_test",
+        "manual_test",
+        "status",
+        "notes",
+    ):
+        if previous.get(field_name):
+            default_row[field_name] = previous[field_name]
+    return default_row
 
 
 def component_for(requirement_id: str) -> str:

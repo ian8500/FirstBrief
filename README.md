@@ -2,16 +2,29 @@
 
 FirstBrief is being developed as a secure, auditable operational briefing application.
 
-The repository currently contains the completed Prompt 0 design gate:
+The repository currently contains the completed Prompt 0 design gate and Prompt
+1 engineering foundation:
 
 - 121 source requirements inventoried and mapped to bounded components;
 - 17 proposed gap-closing requirements kept separately from the controlling source;
 - solution, domain, lifecycle, threat, and non-functional designs;
 - architecture decisions for identity, audit, files, background work, and reporting;
 - a prioritised Prompt 1–12 delivery backlog.
+- Django 5.2 LTS with PostgreSQL, Redis, and Celery;
+- secure environment-based settings, correlation-aware JSON logs, and health checks;
+- container development, CI, formatting, typing, tests, and dependency auditing.
 
-Start with [the Prompt 0 verification report](docs/prompt-0-verification.md) and
-[solution design](docs/solution-design.md).
+Start with [the Prompt 1 verification report](docs/prompt-1-verification.md),
+[developer setup](docs/development.md), and [solution design](docs/solution-design.md).
+
+## Run locally
+
+```bash
+docker compose up --build
+```
+
+Open `http://localhost:8001/`. See [developer setup](docs/development.md) for
+native Python setup, test commands, and seed data.
 
 ## Controlled source
 
