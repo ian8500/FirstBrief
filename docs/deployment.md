@@ -2,7 +2,7 @@
 
 ## Runtime topology
 
-Deploy separate web and Celery worker processes from the same immutable image.
+Deploy separate web, Celery worker and singleton Celery Beat processes from the same immutable image.
 Provide managed PostgreSQL, Redis or an approved broker, protected object storage,
 email, secrets management, TLS termination, metrics, and central logs.
 
@@ -29,7 +29,10 @@ forwarding so only the trusted reverse proxy can supply `X-Forwarded-Proto`.
 4. Run `python manage.py migrate --noinput` as a one-off release task.
 5. Deploy web processes and confirm `/health/live/` and `/health/ready/`.
 6. Deploy workers and invoke `firstbrief.core.worker_ping`.
-7. Observe error rate, latency, database health, worker connectivity, and queue age.
+7. Deploy exactly one Beat scheduler and confirm the three
+   `firstbrief.notifications.*` periodic tasks are firing.
+8. Observe error rate, latency, database health, worker connectivity, outbox age,
+   lifecycle lag, retry counts and dead-letter counts.
 
 Do not run migrations concurrently from every web replica in production.
 
@@ -47,5 +50,8 @@ contract deployment steps across releases.
 - Correlation IDs are returned as `X-Request-ID` and included in JSON logs.
 - Alert on sustained readiness failures, 5xx responses, worker loss, broker
   disconnection, and migration failures.
+- Alert when pending outbox/lifecycle work is older than its operating threshold
+  or any dead-letter count is non-zero. Authorised operators can inspect and
+  manually resend notification deliveries at `/notifications/manage/`.
 - Backups, restore cadence, availability, RTO, and RPO remain pending named-owner
   approval under NFR-01.

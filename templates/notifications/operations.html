@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}Notification operations · FirstBrief{% endblock %}
+{% block content %}
+  <h1>Notification operations</h1>
+
+  <h2>Delivery policy</h2>
+  <form method="post" novalidate>
+    {% csrf_token %}
+    {% if form.errors %}
+      <div class="validation-summary" role="alert">
+        <h3>There is a problem</h3>
+        {{ form.non_field_errors }}
+      </div>
+    {% endif %}
+    {% for field in form %}
+      <div class="form-group">
+        {{ field.label_tag }} {{ field }}
+        {% for error in field.errors %}<p class="error">{{ error }}</p>{% endfor %}
+      </div>
+    {% endfor %}
+    <button type="submit">Save delivery policy</button>
+  </form>
+
+  <h2>Dead letters</h2>
+  <h3>Notification deliveries</h3>
+  <ul>
+    {% for job in notification_dead %}
+      <li>
+        {{ job.message.message_id }} — {{ job.last_error }}
+        <form method="post" action="{% url 'notifications:resend' job.pk %}">
+          {% csrf_token %}<button type="submit">Resend</button>
+        </form>
+      </li>
+    {% empty %}<li>No notification dead letters.</li>{% endfor %}
+  </ul>
+
+  <h3>Outbox events</h3>
+  <ul>
+    {% for event in outbox_dead %}
+      <li>{{ event.topic }} — {{ event.last_error }}</li>
+    {% empty %}<li>No outbox dead letters.</li>{% endfor %}
+  </ul>
+
+  <h3>Lifecycle jobs</h3>
+  <ul>
+    {% for job in lifecycle_dead %}
+      <li>{{ job.message.message_id }} — {{ job.get_transition_display }} — {{ job.last_error }}</li>
+    {% empty %}<li>No lifecycle dead letters.</li>{% endfor %}
+  </ul>
+
+  <h2>Recent notifications</h2>
+  <table>
+    <thead><tr><th>Message</th><th>Kind</th><th>Status</th><th>Attempts</th><th>Scheduled</th></tr></thead>
+    <tbody>
+      {% for job in notification_recent %}
+        <tr>
+          <td>{{ job.message.message_id }}</td>
+          <td>{{ job.get_kind_display }}</td>
+          <td>{{ job.get_status_display }}</td>
+          <td>{{ job.attempts }}</td>
+          <td>{{ job.scheduled_at }}</td>
+        </tr>
+      {% empty %}<tr><td colspan="5">No notifications have been queued.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+{% endblock %}
