@@ -15,7 +15,7 @@ Start with [the Prompt 0 verification report](docs/prompt-0-verification.md) and
 
 ## Controlled source
 
-The controlling requirements PDF is marked **NATS Internal** and is intentionally
+The controlling requirements PDF is marked **Internal** and is intentionally
 excluded from Git. Place an authorised copy at:
 
 `docs/source/FirstBrief_Master_Requirements_TwoSections.pdf`
@@ -33,4 +33,3 @@ python -m unittest discover -s tests -v
 
 Do not publish controlled source material without the required
 information-classification approval.
-
