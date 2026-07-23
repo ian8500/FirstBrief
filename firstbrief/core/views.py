@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 from datetime import UTC, datetime
 
+from django.contrib.auth.decorators import login_required
 from django.db import connection
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import render
@@ -15,6 +16,7 @@ logger = logging.getLogger(__name__)
 
 
 @require_GET
+@login_required
 def home(request: HttpRequest) -> HttpResponse:
     return render(request, "home.html")
 

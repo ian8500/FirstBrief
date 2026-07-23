@@ -1,0 +1,2 @@
+{% extends "base.html" %}
+{% block content %}<section class="panel narrow"><h1>Confirm logout</h1><h2>Messages accessed this session</h2><ul>{% for item in accessed_messages %}<li>{{ item }}</li>{% empty %}<li>No messages accessed this session.</li>{% endfor %}</ul><form method="post">{% csrf_token %}<button type="submit">Log out securely</button></form></section>{% endblock %}

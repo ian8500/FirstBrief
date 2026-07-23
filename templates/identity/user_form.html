@@ -1,0 +1,2 @@
+{% extends "base.html" %}
+{% block content %}<section class="panel"><h1>Create user</h1>{% if form.errors %}<div class="error-summary" role="alert"><h2>Correct the highlighted fields</h2></div>{% endif %}<form method="post">{% csrf_token %}{{ form.as_p }}<button type="submit">Create user</button></form></section>{% endblock %}

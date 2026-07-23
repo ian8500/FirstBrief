@@ -15,9 +15,13 @@ from firstbrief.core.jobs import CeleryJobDispatcher, JobRequest
 from firstbrief.core.logging import JsonFormatter
 from firstbrief.core.models import SystemSetting
 from firstbrief.core.tasks import worker_ping
+from firstbrief.identity.models import User
 
 
+@pytest.mark.django_db
 def test_home_is_accessible(client: Client) -> None:
+    user = User.objects.create_user(username="foundation-user", password="Safe-test-42!")
+    client.force_login(user)
     response = client.get("/")
     assert response.status_code == 200
     content = response.content.decode()

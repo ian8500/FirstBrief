@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Your profile — FirstBrief{% endblock %}
+{% block content %}
+  <section class="panel" aria-labelledby="profile-title">
+    <p class="eyebrow">Current details</p>
+    <h1 id="profile-title">Your profile</h1>
+    <dl class="status-card">
+      <div><dt>User ID</dt><dd>{{ request.user.username }}</dd></div>
+      <div><dt>Name</dt><dd>{{ request.user.get_full_name|default:"Not recorded" }}</dd></div>
+      <div><dt>Site</dt><dd>{{ request.user.site|default:"Not assigned" }}</dd></div>
+      <div><dt>Roles</dt><dd>{% for role in request.user.roles.all %}{{ role }}{% if not forloop.last %}, {% endif %}{% empty %}None{% endfor %}</dd></div>
+      <div><dt>Groups</dt><dd>{% for group in request.user.message_groups.all %}{{ group }}{% if not forloop.last %}, {% endif %}{% empty %}None{% endfor %}</dd></div>
+    </dl>
+    <p><a class="button" href="{% url 'identity:password-change' %}">Change password</a></p>
+  </section>
+{% endblock %}
