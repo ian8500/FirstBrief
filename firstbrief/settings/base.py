@@ -18,6 +18,7 @@ env = environ.Env(
     FIRSTBRIEF_SITE_TIMEZONE=(str, "Europe/London"),
     LOG_LEVEL=(str, "INFO"),
     FIRSTBRIEF_LOCAL_AUTH_ENABLED=(bool, False),
+    FIRSTBRIEF_MALWARE_SCANNER=(str, "firstbrief.messaging.scanning.UnavailableScanner"),
 )
 
 if env.bool("DJANGO_READ_DOT_ENV", default=False):
@@ -52,6 +53,7 @@ INSTALLED_APPS = [
     "firstbrief.configuration",
     "firstbrief.core",
     "firstbrief.identity",
+    "firstbrief.messaging",
 ]
 
 MIDDLEWARE = [
@@ -100,6 +102,7 @@ TEMPLATES = [
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
                 "firstbrief.configuration.context_processors.configuration_access",
+                "firstbrief.messaging.context_processors.message_access",
             ],
         },
     },
@@ -150,6 +153,7 @@ STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
+FIRSTBRIEF_MALWARE_SCANNER = env("FIRSTBRIEF_MALWARE_SCANNER")
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 

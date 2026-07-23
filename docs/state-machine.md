@@ -16,6 +16,7 @@
 | Approved pending release | withdraw | Withdrawn | before effective; reason required |
 | Released pending effective | become effective | Effective | due; not withdrawn; idempotent |
 | Released pending effective | withdraw | Withdrawn | before effective; reason and authority |
+| Released pending effective | cancel | Cancelled | post-release safety action; reason and authority |
 | Effective | expire | Expired | due; idempotent |
 | Effective | cancel | Cancelled | reason and authority; original retained |
 | Effective | supersede | Effective plus link | replacement approved/effective under policy |
@@ -23,7 +24,10 @@
 | Cancelled | archive | Archived | retention/archive threshold reached |
 | Withdrawn | archive | Archived | retention/archive threshold reached |
 
-The exact direct-release behaviour when `release_at >= effective_at`, and whether cancellation is allowed before effective, require product approval.
+When effective time has already arrived at release, release moves directly to
+`EFFECTIVE`. Cancellation from Released Pending Effective is implemented as the
+FR-K02 proposed post-release safety action and remains subject to formal product
+approval.
 
 ## Transition contract
 
@@ -45,4 +49,3 @@ Timestamps are stored in UTC. Users enter and view time in a configured IANA sit
 ## Visibility and evidence
 
 Visibility is derived from lifecycle, audience resolution, message-type configuration, and site scope. Notification timing is separate from visibility. Withdrawal/cancellation produces an immutable banner/reason and configured notifications. Viewing sessions and acknowledgement remain separate evidence.
-

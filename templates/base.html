@@ -17,6 +17,9 @@
             {% if can_manage_configuration %}
               <a href="{% url 'configuration:index' %}">Configuration</a>
             {% endif %}
+            {% if can_manage_messages %}
+              <a href="{% url 'messaging:list' %}">Messages</a>
+            {% endif %}
             <a href="{% url 'identity:profile' %}">Profile</a>
             <a href="{% url 'identity:logout' %}">Log out</a>
           </nav>

@@ -19,6 +19,9 @@ MANAGE_USERS = "manage-users"
 MANAGE_ROLES = "manage-roles"
 MANAGE_IDENTITY_SETTINGS = "manage-identity-settings"
 MANAGE_CONFIGURATION = "manage-configuration"
+CREATE_MESSAGES = "create-messages"
+APPROVE_MESSAGES = "approve-messages"
+MANAGE_MESSAGES = "manage-messages"
 SEE_ALL_PMG = "see-all-primary-message-groups"
 
 
