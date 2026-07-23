@@ -18,6 +18,7 @@ from firstbrief.identity.models import IdentityPolicy, User
 MANAGE_USERS = "manage-users"
 MANAGE_ROLES = "manage-roles"
 MANAGE_IDENTITY_SETTINGS = "manage-identity-settings"
+MANAGE_CONFIGURATION = "manage-configuration"
 SEE_ALL_PMG = "see-all-primary-message-groups"
 
 

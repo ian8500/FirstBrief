@@ -15,6 +15,7 @@ handler500 = "firstbrief.core.error_views.server_error"
 urlpatterns = [
     path("", views.home, name="home"),
     path("access/", include("firstbrief.identity.urls")),
+    path("configuration/", include("firstbrief.configuration.urls")),
     path("admin/", admin.site.urls),
     path("health/live/", views.liveness, name="health-live"),
     path("health/ready/", views.readiness, name="health-ready"),

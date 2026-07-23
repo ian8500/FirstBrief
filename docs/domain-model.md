@@ -8,7 +8,12 @@
 
 ### Configuration
 
-`PrimaryMessageGroup` contains a hierarchy of `MessageGroupType` and `MessageGroup` nodes according to approved rules. `MessageType` owns configurable behaviour and `MessageSubType` validity bounds. `Sector` and `DistributionList` provide audience and notification dimensions. Referenced configuration is deactivated or deletion-protected.
+`PrimaryMessageGroup` contains hierarchical `MessageGroup` nodes. `MessageGroupType` is
+independently hierarchical, controls allowed message types, and may enforce exclusive
+user membership. `MessageType` owns content, display, approval, search, subtype and
+effective-date behaviour. `MessageSubType` is scoped by primary group and message type
+and owns validity bounds. `Sector` and `EmailDistribution` provide audience and
+notification dimensions. Referenced configuration is deletion-protected.
 
 ### Message
 
@@ -32,6 +37,9 @@
 
 - A user can access only records inside resolved site/message-type/audience scope.
 - Default group must be one of the user’s current eligible groups.
+- A user may belong to at most one group for each exclusive message-group type.
+- Message-group and group-type parentage must be acyclic; message-group parents share a PMG.
+- Message subtype maximum validity is never less than minimum validity.
 - Audience resolution is deterministic; proposed precedence is `Prohibited > Mandatory > Allowed`.
 - An approved message version is immutable; edits create a new draft/version.
 - Every lifecycle transition is validated, transactional, idempotent, concurrency checked, and audited.
@@ -46,4 +54,3 @@
 ## Planned persistence namespaces
 
 `identity`, `configuration`, `messaging`, `consumption`, `notifications`, `reporting`, `imports`, and `assurance` are Django apps. Models may share one PostgreSQL database, but service interfaces and tests enforce module ownership.
-

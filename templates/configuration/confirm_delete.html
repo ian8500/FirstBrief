@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}Delete {{ object.name }} · FirstBrief{% endblock %}
+{% block content %}
+  <h1>Delete {{ object.name }}?</h1>
+  <div class="warning" role="alert">
+    <p>This action cannot be undone. Records in use are protected and will not be deleted.</p>
+  </div>
+  <form method="post">
+    {% csrf_token %}
+    <button class="button-danger" type="submit">Yes, delete</button>
+    <a href="{% url 'configuration:index' %}">Cancel</a>
+  </form>
+{% endblock %}
