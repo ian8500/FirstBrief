@@ -13,6 +13,7 @@ from django.utils import timezone
 from firstbrief.configuration.models import MessageGroup, MessageType, PrimaryMessageGroup, Site
 from firstbrief.identity.models import Capability, IdentityPolicy, Role, User
 from firstbrief.identity.services import (
+    MANAGE_CONFIGURATION,
     MANAGE_IDENTITY_SETTINGS,
     MANAGE_ROLES,
     MANAGE_USERS,
@@ -48,6 +49,7 @@ class Command(BaseCommand):
                 (MANAGE_USERS, "Manage users"),
                 (MANAGE_ROLES, "Manage roles"),
                 (MANAGE_IDENTITY_SETTINGS, "Manage identity settings"),
+                (MANAGE_CONFIGURATION, "Manage configuration"),
                 (SEE_ALL_PMG, "See all primary message groups"),
             )
         ]

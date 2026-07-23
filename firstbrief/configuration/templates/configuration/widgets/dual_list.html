@@ -1,0 +1,28 @@
+<div class="dual-list" data-dual-list>
+  <div>
+    <label for="{{ widget.attrs.id }}-available">Available</label>
+    <select id="{{ widget.attrs.id }}-available" multiple size="8">
+      {% for group_name, group_options, group_index in widget.optgroups %}
+        {% for option in group_options %}
+          {% if not option.selected %}<option value="{{ option.value }}">{{ option.label }}</option>{% endif %}
+        {% endfor %}
+      {% endfor %}
+    </select>
+  </div>
+  <div class="dual-list-actions" aria-label="Move selections">
+    <button type="button" data-dual-add aria-label="Add selected items">Add →</button>
+    <button type="button" data-dual-add-all aria-label="Add all items">Add all ⇒</button>
+    <button type="button" data-dual-remove aria-label="Remove selected items">← Remove</button>
+    <button type="button" data-dual-remove-all aria-label="Remove all items">⇐ Remove all</button>
+  </div>
+  <div>
+    <label for="{{ widget.attrs.id }}">Selected</label>
+    <select name="{{ widget.name }}" id="{{ widget.attrs.id }}" multiple size="8">
+      {% for group_name, group_options, group_index in widget.optgroups %}
+        {% for option in group_options %}
+          {% if option.selected %}<option value="{{ option.value }}" selected>{{ option.label }}</option>{% endif %}
+        {% endfor %}
+      {% endfor %}
+    </select>
+  </div>
+</div>

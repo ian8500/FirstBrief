@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{% block title %}FirstBrief{% endblock %}</title>
     <link rel="stylesheet" href="/static/css/app.css">
+    <script src="/static/js/configuration.js" defer></script>
   </head>
   <body>
     <a class="skip-link" href="#main-content">Skip to main content</a>
@@ -13,6 +14,9 @@
         <a class="brand" href="{% url 'home' %}">FirstBrief</a>
         {% if request.user.is_authenticated %}
           <nav aria-label="Account">
+            {% if can_manage_configuration %}
+              <a href="{% url 'configuration:index' %}">Configuration</a>
+            {% endif %}
             <a href="{% url 'identity:profile' %}">Profile</a>
             <a href="{% url 'identity:logout' %}">Log out</a>
           </nav>

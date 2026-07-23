@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}Configuration · FirstBrief{% endblock %}
+{% block content %}
+  <h1>Configuration</h1>
+  <p>Manage the message taxonomy, routing and operational references.</p>
+
+  <section aria-labelledby="taxonomy-heading">
+    <h2 id="taxonomy-heading">Taxonomy tree</h2>
+    <div class="taxonomy-grid">
+      <div>
+        <h3>Message group types</h3>
+        <ul class="tree">
+          {% for item in group_type_roots %}
+            <li>{{ item }}
+              {% if item.children.all %}<ul>{% for child in item.children.all %}<li>{{ child }}</li>{% endfor %}</ul>{% endif %}
+            </li>
+          {% empty %}<li>No group types configured.</li>{% endfor %}
+        </ul>
+      </div>
+      <div>
+        <h3>Message groups</h3>
+        <ul class="tree">
+          {% for item in group_roots %}
+            <li>{{ item }} <small>{{ item.primary_group.name }}</small>
+              {% if item.children.all %}<ul>{% for child in item.children.all %}<li>{{ child }}</li>{% endfor %}</ul>{% endif %}
+            </li>
+          {% empty %}<li>No message groups configured.</li>{% endfor %}
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  {% for kind, entry, objects in sections %}
+    <section aria-labelledby="{{ kind }}-heading">
+      <div class="section-heading">
+        <h2 id="{{ kind }}-heading">{{ entry.label }}</h2>
+        <a class="button" href="{% url 'configuration:create' kind %}">Add</a>
+      </div>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th scope="col">Name</th><th scope="col">Code</th><th scope="col">Status</th><th scope="col">Actions</th></tr></thead>
+          <tbody>
+          {% for object in objects %}
+            <tr>
+              <th scope="row">{{ object.name }}</th>
+              <td>{{ object.code }}</td>
+              <td>{% if object.is_active %}Active{% else %}Inactive{% endif %}</td>
+              <td>
+                <a href="{% url 'configuration:edit' kind object.pk %}">Edit</a>
+                <a href="{% url 'configuration:delete' kind object.pk %}">Delete</a>
+              </td>
+            </tr>
+          {% empty %}<tr><td colspan="4">None configured.</td></tr>{% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  {% endfor %}
+{% endblock %}
