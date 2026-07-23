@@ -10,7 +10,7 @@ Detailed design decisions and phase evidence remain in `docs/`.
 
 ## Current delivery status
 
-Prompts 0–4 are implemented. Prompt 5 is in delivery.
+Prompts 0–5 are implemented. Prompt 6 is the next delivery phase.
 
 | Phase | Delivered capability |
 | --- | --- |
