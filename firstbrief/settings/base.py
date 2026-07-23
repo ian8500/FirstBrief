@@ -54,6 +54,7 @@ INSTALLED_APPS = [
     "firstbrief.core",
     "firstbrief.identity",
     "firstbrief.messaging",
+    "firstbrief.notifications",
 ]
 
 MIDDLEWARE = [
@@ -103,6 +104,7 @@ TEMPLATES = [
                 "django.contrib.messages.context_processors.messages",
                 "firstbrief.configuration.context_processors.configuration_access",
                 "firstbrief.messaging.context_processors.message_access",
+                "firstbrief.notifications.context_processors.notification_access",
             ],
         },
     },
@@ -202,6 +204,20 @@ CELERY_TIMEZONE = "UTC"
 CELERY_TASK_ACKS_LATE = True
 CELERY_TASK_REJECT_ON_WORKER_LOST = True
 CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
+CELERY_BEAT_SCHEDULE = {
+    "firstbrief-process-outbox": {
+        "task": "firstbrief.notifications.process_outbox",
+        "schedule": 60.0,
+    },
+    "firstbrief-process-lifecycle": {
+        "task": "firstbrief.notifications.process_lifecycle",
+        "schedule": 60.0,
+    },
+    "firstbrief-deliver-notifications": {
+        "task": "firstbrief.notifications.deliver",
+        "schedule": 60.0,
+    },
+}
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [

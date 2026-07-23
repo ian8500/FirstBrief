@@ -164,6 +164,9 @@ def create_message(
             "status": message.status,
         },
     )
+    from firstbrief.notifications.services import register_message_created
+
+    register_message_created(message)
     return message
 
 
@@ -236,13 +239,16 @@ def revise_message(
         after={"version": replacement.version_number},
         reason=reason,
     )
+    from firstbrief.notifications.services import schedule_message_lifecycle
+
+    schedule_message_lifecycle(locked)
     return locked
 
 
 def _transition(
     *,
     message: Message,
-    actor: User,
+    actor: User | None,
     expected_version: int,
     idempotency_key: uuid.UUID,
     command: str,
@@ -352,7 +358,7 @@ def approve_message(
         justification=justification,
         validity_justification=validity_justification,
     )
-    return _transition(
+    approved = _transition(
         message=locked,
         actor=actor,
         expected_version=expected_version,
@@ -362,18 +368,23 @@ def approve_message(
         target_status=Message.Status.APPROVED_PENDING_RELEASE,
         reason=justification,
     )
+    from firstbrief.notifications.services import register_message_approved
+
+    register_message_approved(approved, at=now)
+    return approved
 
 
 @transaction.atomic
 def release_message(
     *,
-    actor: User,
+    actor: User | None,
     message: Message,
     expected_version: int,
     idempotency_key: uuid.UUID,
     at: datetime | None = None,
 ) -> Message:
-    require_capability(actor, MANAGE_MESSAGES)
+    if actor is not None:
+        require_capability(actor, MANAGE_MESSAGES)
     replayed = _replayed_command(message, idempotency_key, "released")
     if replayed is not None:
         return replayed
@@ -405,13 +416,14 @@ def release_message(
 @transaction.atomic
 def make_effective(
     *,
-    actor: User,
+    actor: User | None,
     message: Message,
     expected_version: int,
     idempotency_key: uuid.UUID,
     at: datetime | None = None,
 ) -> Message:
-    require_capability(actor, MANAGE_MESSAGES)
+    if actor is not None:
+        require_capability(actor, MANAGE_MESSAGES)
     replayed = _replayed_command(message, idempotency_key, "effective")
     if replayed is not None:
         return replayed
@@ -433,13 +445,14 @@ def make_effective(
 @transaction.atomic
 def expire_message(
     *,
-    actor: User,
+    actor: User | None,
     message: Message,
     expected_version: int,
     idempotency_key: uuid.UUID,
     at: datetime | None = None,
 ) -> Message:
-    require_capability(actor, MANAGE_MESSAGES)
+    if actor is not None:
+        require_capability(actor, MANAGE_MESSAGES)
     replayed = _replayed_command(message, idempotency_key, "expired")
     if replayed is not None:
         return replayed
@@ -460,12 +473,13 @@ def expire_message(
 @transaction.atomic
 def archive_message(
     *,
-    actor: User,
+    actor: User | None,
     message: Message,
     expected_version: int,
     idempotency_key: uuid.UUID,
 ) -> Message:
-    require_capability(actor, MANAGE_MESSAGES)
+    if actor is not None:
+        require_capability(actor, MANAGE_MESSAGES)
     replayed = _replayed_command(message, idempotency_key, "archived")
     if replayed is not None:
         return replayed

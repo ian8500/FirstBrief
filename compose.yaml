@@ -76,6 +76,18 @@ services:
       redis:
         condition: service_healthy
 
+  beat:
+    build:
+      context: .
+      target: production
+    environment: *application-environment
+    command: ["celery", "--app=firstbrief", "beat", "--loglevel=INFO"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
   test:
     profiles: ["test"]
     build:

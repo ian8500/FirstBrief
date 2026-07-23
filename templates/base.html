@@ -20,6 +20,9 @@
             {% if can_manage_messages %}
               <a href="{% url 'messaging:list' %}">Messages</a>
             {% endif %}
+            {% if can_manage_notifications %}
+              <a href="{% url 'notifications:operations' %}">Notifications</a>
+            {% endif %}
             <a href="{% url 'identity:profile' %}">Profile</a>
             <a href="{% url 'identity:logout' %}">Log out</a>
           </nav>
