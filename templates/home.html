@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+
+{% block title %}FirstBrief engineering foundation{% endblock %}
+
+{% block content %}
+  <section class="hero" aria-labelledby="page-title">
+    <p class="eyebrow">Engineering foundation</p>
+    <h1 id="page-title">FirstBrief</h1>
+    <p class="lead">
+      The secure application foundation is running. Operational features are introduced
+      through the remaining verified delivery phases.
+    </p>
+    <dl class="status-card">
+      <div>
+        <dt>Application</dt>
+        <dd><span class="status-dot" aria-hidden="true"></span> Available</dd>
+      </div>
+      <div>
+        <dt>Readiness</dt>
+        <dd><a href="{% url 'health-ready' %}">View readiness status</a></dd>
+      </div>
+    </dl>
+  </section>
+{% endblock %}

@@ -2,6 +2,11 @@
 docs/source/*.pdf
 .env
 .venv/
+db.sqlite3
+staticfiles/
+media/
+.coverage
+htmlcov/
 __pycache__/
 *.py[cod]
 .pytest_cache/
