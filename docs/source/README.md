@@ -1,7 +1,7 @@
 # Controlled source documents
 
 The controlling requirements PDF is not stored in Git because it is marked
-**NATS Internal** and this repository is public.
+**Internal** and this repository is public.
 
 For authorised local work, place the file at:
 
@@ -9,4 +9,3 @@ For authorised local work, place the file at:
 
 Its expected SHA-256 checksum is recorded in
 `docs/requirements/source-register.md`.
-
