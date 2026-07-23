@@ -17,6 +17,7 @@ env = environ.Env(
     DJANGO_SECURE_SSL_REDIRECT=(bool, True),
     FIRSTBRIEF_SITE_TIMEZONE=(str, "Europe/London"),
     LOG_LEVEL=(str, "INFO"),
+    FIRSTBRIEF_LOCAL_AUTH_ENABLED=(bool, False),
 )
 
 if env.bool("DJANGO_READ_DOT_ENV", default=False):
@@ -47,7 +48,10 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "rest_framework",
+    "firstbrief.assurance",
+    "firstbrief.configuration",
     "firstbrief.core",
+    "firstbrief.identity",
 ]
 
 MIDDLEWARE = [
@@ -58,9 +62,29 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "firstbrief.identity.middleware.IdentitySessionMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "firstbrief.core.middleware.BaselineSecurityHeadersMiddleware",
+]
+
+AUTH_USER_MODEL = "identity.User"
+
+EXTERNAL_AUTH_BACKEND = env("FIRSTBRIEF_EXTERNAL_AUTH_BACKEND", default="")
+LOCAL_AUTH_ENABLED = env("FIRSTBRIEF_LOCAL_AUTH_ENABLED")
+if ENVIRONMENT in {"development", "test"}:
+    LOCAL_AUTH_ENABLED = env.bool("FIRSTBRIEF_LOCAL_AUTH_ENABLED", default=True)
+if ENVIRONMENT == "production" and not (EXTERNAL_AUTH_BACKEND or LOCAL_AUTH_ENABLED):
+    raise ImproperlyConfigured(
+        "Configure FIRSTBRIEF_EXTERNAL_AUTH_BACKEND or explicitly enable local auth"
+    )
+AUTHENTICATION_BACKENDS = [
+    backend
+    for backend in (
+        EXTERNAL_AUTH_BACKEND,
+        "firstbrief.identity.backends.LocalAccountBackend" if LOCAL_AUTH_ENABLED else "",
+    )
+    if backend
 ]
 
 ROOT_URLCONF = "firstbrief.urls"
@@ -101,10 +125,18 @@ CACHES = {
 
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
-    {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
+    {"NAME": "firstbrief.identity.validators.FirstBriefPasswordValidator"},
     {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
     {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
 ]
+PASSWORD_HASHERS = [
+    "django.contrib.auth.hashers.Argon2PasswordHasher",
+    "django.contrib.auth.hashers.PBKDF2PasswordHasher",
+]
+PASSWORD_RESET_TIMEOUT = env.int("FIRSTBRIEF_PASSWORD_RESET_TIMEOUT", default=1_800)
+LOGIN_URL = "identity:login"
+LOGIN_REDIRECT_URL = "home"
+LOGOUT_REDIRECT_URL = "identity:login"
 
 LANGUAGE_CODE = "en-gb"
 TIME_ZONE = "UTC"

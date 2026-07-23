@@ -24,6 +24,10 @@ python manage.py runserver
 Open `http://localhost:8000/`. Liveness is `/health/live/`; readiness is
 `/health/ready/`.
 
+The seed command creates identity reference data but no account unless
+`FIRSTBRIEF_DEVELOPMENT_ADMIN_PASSWORD` is set to a password satisfying the
+current policy. The development-only administrator user ID is `demo-admin`.
+
 ## Full container environment
 
 ```bash
@@ -55,6 +59,8 @@ docker compose --profile test run --rm test
 ## Configuration rules
 
 - Production settings require an explicit secret key and allowed-host list.
+- Production also requires an approved external authentication backend or an
+  explicit decision to enable the local fallback.
 - Secrets must not be placed in `SystemSetting`, fixtures, `.env.example`, or Git.
 - UTC is authoritative. `FIRSTBRIEF_SITE_TIMEZONE` controls future display logic.
 - Request logs contain method and path but intentionally exclude query strings,
@@ -67,3 +73,11 @@ docker compose --profile test run --rm test
 Create migrations with `python manage.py makemigrations`. Review generated SQL
 and test both clean installation and upgrades before merging. Application startup
 does not silently create migrations.
+
+Prompt 2 establishes the custom user model before the first production baseline.
+Prompt 1 Compose volumes were explicitly development-only and cannot be upgraded
+in place after Django's built-in admin migration has created references to the
+default user table. Preserve any needed development fixture inputs, then start a
+fresh named Compose project/volume for Prompt 2. Production environments must be
+created from the Prompt 2-or-later migration baseline; no production data
+migration from the Prompt 1 engineering prototype is supported.

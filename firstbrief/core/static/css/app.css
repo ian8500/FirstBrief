@@ -53,6 +53,17 @@ a:focus-visible {
   padding: 1rem 0;
 }
 
+.site-header .container,
+.site-header nav {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.site-header .container {
+  justify-content: space-between;
+}
+
 .brand {
   font-weight: 750;
   letter-spacing: -0.02em;
@@ -77,6 +88,94 @@ h1 {
   font-size: clamp(2.5rem, 7vw, 5rem);
   letter-spacing: -0.045em;
   line-height: 1;
+}
+
+.panel {
+  max-width: 60rem;
+  padding: 3rem 0;
+}
+
+.narrow {
+  max-width: 38rem;
+}
+
+h2 {
+  margin-top: 2rem;
+}
+
+label {
+  display: block;
+  margin-bottom: 0.35rem;
+  font-weight: 700;
+}
+
+input,
+select {
+  width: 100%;
+  max-width: 36rem;
+  padding: 0.7rem;
+  border: 1px solid #718096;
+  border-radius: 0.25rem;
+  font: inherit;
+}
+
+input[type="checkbox"] {
+  width: auto;
+}
+
+button,
+.button {
+  display: inline-block;
+  padding: 0.7rem 1rem;
+  border: 0;
+  border-radius: 0.25rem;
+  background: var(--accent);
+  color: #fff;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  outline: 3px solid #ffbf47;
+  outline-offset: 2px;
+}
+
+.error-summary {
+  margin: 1.5rem 0;
+  padding: 1rem;
+  border-left: 0.4rem solid #b42318;
+  background: #fff1f0;
+}
+
+.notice,
+.messages {
+  margin: 1.5rem 0;
+  padding: 1rem;
+  border-left: 0.4rem solid var(--accent);
+  background: #eef6ff;
+}
+
+.errorlist {
+  color: #8a1c13;
+  font-weight: 700;
+}
+
+.result-list {
+  padding: 0;
+  list-style: none;
+}
+
+.result-list li {
+  padding: 1rem 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.inline {
+  display: inline;
+  margin-left: 1rem;
 }
 
 .lead {

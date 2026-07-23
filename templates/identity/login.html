@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Sign in — FirstBrief{% endblock %}
+{% block content %}
+  <section class="panel narrow" aria-labelledby="login-title">
+    <p class="eyebrow">Secure access</p>
+    <h1 id="login-title">Sign in</h1>
+    {% if form.non_field_errors %}
+      <div class="error-summary" role="alert">
+        <h2>Sign in was unsuccessful</h2>{{ form.non_field_errors }}
+      </div>
+    {% endif %}
+    <form method="post">
+      {% csrf_token %}
+      <p>
+        {{ form.username.label_tag }}
+        {{ form.username.errors }}
+        {{ form.username }}
+      </p>
+      <p>
+        {{ form.password.label_tag }}
+        {{ form.password.errors }}
+        {{ form.password }}
+      </p>
+      <button type="submit">Sign in</button>
+    </form>
+    <p><a href="{% url 'identity:password-reset' %}">Forgotten your password?</a></p>
+  </section>
+{% endblock %}

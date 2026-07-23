@@ -85,4 +85,5 @@ jobs:
           DJANGO_SECRET_KEY: "ci-check-only-4!aR8-xQ2_mZ7@vK9-pL3_tN6-sW1+cD5=eF0.gH7"
           DJANGO_ALLOWED_HOSTS: firstbrief.example.invalid
           DJANGO_SECURE_SSL_REDIRECT: "true"
+          FIRSTBRIEF_LOCAL_AUTH_ENABLED: "true"
         run: python manage.py check --deploy
