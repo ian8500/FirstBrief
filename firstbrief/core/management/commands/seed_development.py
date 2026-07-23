@@ -10,11 +10,20 @@ from django.core.management import call_command
 from django.core.management.base import BaseCommand, CommandError
 from django.utils import timezone
 
-from firstbrief.configuration.models import MessageGroup, MessageType, PrimaryMessageGroup, Site
+from firstbrief.configuration.models import (
+    MessageGroup,
+    MessageSubType,
+    MessageType,
+    PrimaryMessageGroup,
+    Site,
+)
 from firstbrief.identity.models import Capability, IdentityPolicy, Role, User
 from firstbrief.identity.services import (
+    APPROVE_MESSAGES,
+    CREATE_MESSAGES,
     MANAGE_CONFIGURATION,
     MANAGE_IDENTITY_SETTINGS,
+    MANAGE_MESSAGES,
     MANAGE_ROLES,
     MANAGE_USERS,
     SEE_ALL_PMG,
@@ -41,8 +50,36 @@ class Command(BaseCommand):
             code="demo-operations",
             defaults={"name": "Demo Operations", "primary_group": primary_group},
         )
-        for code, name in (("botd", "Brief of the Day"), ("instruction", "Instruction")):
-            MessageType.objects.get_or_create(code=code, defaults={"name": name})
+        _botd, _ = MessageType.objects.update_or_create(
+            code="botd",
+            defaults={
+                "name": "Brief of the Day",
+                "default_content_type": MessageType.ContentType.TEXT,
+                "requires_approval": False,
+                "has_subtypes": False,
+                "has_effective_date": False,
+            },
+        )
+        instruction, _ = MessageType.objects.update_or_create(
+            code="instruction",
+            defaults={
+                "name": "Instruction",
+                "default_content_type": MessageType.ContentType.PDF,
+                "requires_approval": True,
+                "has_subtypes": True,
+                "has_effective_date": True,
+            },
+        )
+        MessageSubType.objects.get_or_create(
+            code="general-instruction",
+            defaults={
+                "name": "General Instruction",
+                "primary_group": primary_group,
+                "message_type": instruction,
+                "minimum_validity_days": 1,
+                "maximum_validity_days": 365,
+            },
+        )
         capabilities = [
             Capability.objects.get_or_create(codename=code, defaults={"name": name})[0]
             for code, name in (
@@ -50,6 +87,9 @@ class Command(BaseCommand):
                 (MANAGE_ROLES, "Manage roles"),
                 (MANAGE_IDENTITY_SETTINGS, "Manage identity settings"),
                 (MANAGE_CONFIGURATION, "Manage configuration"),
+                (CREATE_MESSAGES, "Create messages"),
+                (APPROVE_MESSAGES, "Approve messages"),
+                (MANAGE_MESSAGES, "Manage messages"),
                 (SEE_ALL_PMG, "See all primary message groups"),
             )
         ]

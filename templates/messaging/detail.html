@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}{{ message.message_id }} · FirstBrief{% endblock %}
+{% block content %}
+  <p><a href="{% url 'messaging:list' %}">← Message maintenance</a></p>
+  <div class="section-heading">
+    <h1>{{ message.message_id }} — {{ version.title }}</h1>
+    <a class="button" href="{% url 'messaging:edit' message.pk %}">Create revision</a>
+  </div>
+  <dl class="message-metadata">
+    <dt>Status</dt><dd>{{ message.get_status_display }}</dd>
+    <dt>Kind</dt><dd>{{ message.get_kind_display }}</dd>
+    <dt>Content version</dt><dd>{{ version.version_number }}</dd>
+    <dt>Aggregate version</dt><dd>{{ message.lock_version }}</dd>
+    <dt>Release</dt><dd>{{ version.release_at }}</dd>
+    <dt>Effective</dt><dd>{{ version.effective_at|default:"Not used" }}</dd>
+    <dt>Expiry</dt><dd>{{ version.expiry_at }}</dd>
+    <dt>Originator</dt><dd>{{ message.originator.get_full_name|default:message.originator.username }}</dd>
+  </dl>
+  {% if message.supersedes %}
+    <p class="warning">This message supersedes {{ message.supersedes.message_id }}.</p>
+  {% endif %}
+  {% if message.superseded_by %}
+    <p class="warning">This message was superseded by {{ message.superseded_by.message_id }}.</p>
+  {% endif %}
+  <h2>Summary</h2>
+  <p>{{ version.summary|default:"No summary." }}</p>
+  {% if version.text_content %}<h2>Content</h2><div>{{ version.text_content|linebreaks }}</div>{% endif %}
+
+  <h2>Audience rights</h2>
+  <ul>{% for right in message.audience_rights.all %}<li>{{ right.message_group }} — {{ right.get_right_display }}</li>{% endfor %}</ul>
+
+  <h2>Lifecycle actions</h2>
+  <p>Actions are validated against the current state and your permissions.</p>
+  <div class="lifecycle-actions">
+    <form method="post" action="{% url 'messaging:action' message.pk 'approve' %}">
+      {% csrf_token %}
+      <input type="hidden" name="expected_version" value="{{ message.lock_version }}">
+      <input type="hidden" name="idempotency_key" value="{{ approve_key }}">
+      <label for="approve-reason">Approval justification</label>
+      <textarea id="approve-reason" name="reason"></textarea>
+      <label for="validity-justification">Validity justification, when outside subtype bounds</label>
+      <textarea id="validity-justification" name="validity_justification"></textarea>
+      <button type="submit">Approve</button>
+    </form>
+    {% for action in action_buttons %}
+      <form method="post" action="{% url 'messaging:action' message.pk action.command %}">
+        {% csrf_token %}
+        <input type="hidden" name="expected_version" value="{{ message.lock_version }}">
+        <input type="hidden" name="idempotency_key" value="{{ action.key }}">
+        <label for="{{ action.command }}-reason">{{ action.label }} reason</label>
+        <textarea id="{{ action.command }}-reason" name="reason"></textarea>
+        {% if action.command == "restore" %}
+          <label for="future-expiry">Future expiry</label>
+          <input id="future-expiry" name="future_expiry_at" type="datetime-local">
+        {% endif %}
+        <button type="submit">{{ action.label }}</button>
+      </form>
+    {% endfor %}
+  </div>
+  <h2>Status history</h2>
+  <ol>
+    {% for item in message.status_history.all %}
+      <li>{{ item.occurred_at }} — {{ item.get_to_status_display }} — {{ item.reason }}</li>
+    {% endfor %}
+  </ol>
+{% endblock %}

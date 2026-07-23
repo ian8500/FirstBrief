@@ -42,6 +42,30 @@ th, td { border-bottom: 1px solid #ccd6df; padding: .65rem; text-align: left; }
 @media (max-width: 42rem) {
   .dual-list { grid-template-columns: 1fr; }
 }
+.filter-form {
+  align-items: end;
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+}
+.message-metadata {
+  display: grid;
+  gap: .35rem 1rem;
+  grid-template-columns: max-content 1fr;
+}
+.message-metadata dt { font-weight: 700; }
+.message-metadata dd { margin: 0; }
+.lifecycle-actions {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr));
+}
+.lifecycle-actions form {
+  border: 1px solid #ccd6df;
+  padding: 1rem;
+}
+.lifecycle-actions label,
+.lifecycle-actions textarea { display: block; width: 100%; }
 * {
   box-sizing: border-box;
 }
