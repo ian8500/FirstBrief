@@ -1,0 +1,4 @@
+{% extends "base.html" %}{% block title %}Select SAP file | FirstBrief{% endblock %}
+{% block content %}<p class="eyebrow">SAP import</p><h1>Select a file</h1>
+<form method="post" enctype="multipart/form-data">{% csrf_token %}{{ form.as_p }}
+<button type="submit">Validate and preview</button></form>{% endblock %}

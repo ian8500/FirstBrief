@@ -24,7 +24,9 @@ from firstbrief.identity.services import (
     MANAGE_CONFIGURATION,
     MANAGE_IDENTITY_SETTINGS,
     MANAGE_MESSAGES,
+    MANAGE_RETENTION,
     MANAGE_ROLES,
+    MANAGE_SAP_IMPORTS,
     MANAGE_USERS,
     SEE_ALL_PMG,
     VIEW_AUDIT_HISTORY,
@@ -97,6 +99,8 @@ class Command(BaseCommand):
                 (SEE_ALL_PMG, "See all primary message groups"),
                 (VIEW_AUDIT_HISTORY, "View message audit history"),
                 (VIEW_REPORTS, "View compliance reports"),
+                (MANAGE_SAP_IMPORTS, "Manage SAP imports"),
+                (MANAGE_RETENTION, "Manage retention and continuity"),
             )
         ]
         role, _ = Role.objects.get_or_create(name="System administrator")

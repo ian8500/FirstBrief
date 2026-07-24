@@ -1,0 +1,5 @@
+{% extends "base.html" %}{% block title %}SAP process complete | FirstBrief{% endblock %}
+{% block content %}<p class="eyebrow">SAP import</p><h1>SAP process complete</h1>
+<p>{{ batch.filename }} has been committed.</p><table><thead><tr><th>User</th><th>Selected</th><th>Outcome</th></tr></thead><tbody>
+{% for change in batch.changes.all %}<tr><td>{{ change.user_id }}</td><td>{{ change.selected|yesno:"Yes,No" }}</td><td>{{ change.outcome|default:"Not selected" }}</td></tr>{% endfor %}
+</tbody></table><p><a href="{% url 'sapimport:index' %}">Return to SAP imports</a></p>{% endblock %}

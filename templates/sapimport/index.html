@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}SAP import | FirstBrief{% endblock %}
+{% block content %}
+<div class="page-heading"><div><p class="eyebrow">Administration</p><h1>SAP imports</h1></div>
+<a class="button" href="{% url 'sapimport:upload' %}">Select SAP file</a></div>
+<h2>Available files</h2>
+{% if available %}<table><thead><tr><th>File</th><th>Status</th><th>Staged</th></tr></thead><tbody>
+{% for batch in available %}<tr><td><a href="{% url 'sapimport:review' batch.pk %}">{{ batch.filename }}</a></td><td>{{ batch.get_status_display }}</td><td>{{ batch.staged_at }}</td></tr>{% endfor %}
+</tbody></table>{% else %}<p>No available files.</p>{% endif %}
+<h2>Files in error</h2>
+{% if errors %}<table><thead><tr><th>File</th><th>Error</th></tr></thead><tbody>
+{% for batch in errors %}<tr><td>{{ batch.filename }}</td><td>{{ batch.error }}</td></tr>{% endfor %}
+</tbody></table>{% else %}<p>No rejected files.</p>{% endif %}
+{% endblock %}

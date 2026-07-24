@@ -7,7 +7,7 @@
     {% if run.status == "complete" %}
       <a href="{% url 'reporting:csv' run.pk %}">Download CSV</a>
       <a href="{% url 'reporting:pdf' run.pk %}">Download PDF</a>
-      <button type="button" onclick="window.print()">Print</button>
+      <button type="button" data-print>Print</button>
     {% endif %}
   </div>
   <h1>{{ run.report_code }} — {{ definition.title }}</h1>

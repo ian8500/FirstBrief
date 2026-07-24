@@ -8,12 +8,16 @@
     <script src="/static/js/configuration.js" defer></script>
     <script src="/static/js/consumption.js" defer></script>
     <script src="/static/js/retrieval.js" defer></script>
+    <script src="/static/js/app.js" defer></script>
   </head>
   <body>
     <a class="skip-link" href="#main-content">Skip to main content</a>
     <header class="site-header">
       <div class="container">
-        <a class="brand" href="{% url 'home' %}">FirstBrief</a>
+        <a class="brand" href="{% url 'home' %}" aria-label="FirstBrief home">
+          <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
+          <span>First<span>Brief</span></span>
+        </a>
         {% if request.user.is_authenticated %}
           <nav aria-label="Account">
             <a href="{% url 'home' %}">Dashboard</a>
@@ -33,6 +37,12 @@
             {% if can_view_reports %}
               <a href="{% url 'reporting:catalogue' %}">Reports</a>
             {% endif %}
+            {% if can_manage_imports %}
+              <a href="{% url 'sapimport:index' %}">SAP import</a>
+            {% endif %}
+            {% if can_view_assurance %}
+              <a href="{% url 'assurance:audit' %}">Assurance</a>
+            {% endif %}
             <a href="{% url 'identity:profile' %}">Profile</a>
             <a href="{% url 'identity:logout' %}">Log out</a>
           </nav>
@@ -47,5 +57,12 @@
       {% endif %}
       {% block content %}{% endblock %}
     </main>
+    <footer class="site-footer">
+      <div class="container">
+        <strong>FirstBrief</strong>
+        <span>Operational briefing and assurance</span>
+        <span>Advancing safe, informed operations</span>
+      </div>
+    </footer>
   </body>
 </html>

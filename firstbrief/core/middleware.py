@@ -69,4 +69,6 @@ class BaselineSecurityHeadersMiddleware:
             "camera=(), microphone=(), geolocation=(), payment=(), usb=()",
         )
         response.setdefault("Cross-Origin-Resource-Policy", "same-origin")
+        response.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+        response.setdefault("X-Content-Type-Options", "nosniff")
         return response

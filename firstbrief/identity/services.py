@@ -25,6 +25,8 @@ MANAGE_MESSAGES = "manage-messages"
 SEE_ALL_PMG = "see-all-primary-message-groups"
 VIEW_AUDIT_HISTORY = "view-audit-history"
 VIEW_REPORTS = "view-reports"
+MANAGE_SAP_IMPORTS = "manage-sap-imports"
+MANAGE_RETENTION = "manage-retention"
 
 
 def has_capability(user: User, codename: str) -> bool:
