@@ -1,0 +1,3 @@
+{{ message.message_id }} - {{ version.title }} reached its effective time without approval.
+
+Effective: {{ version.effective_at|default:version.release_at }}

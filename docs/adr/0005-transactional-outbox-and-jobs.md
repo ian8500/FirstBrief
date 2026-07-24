@@ -22,5 +22,7 @@ Redis/RabbitMQ or an enterprise scheduler may transport work, but PostgreSQL rec
 
 Notification visibility and email timing are independent. Creation and approval
 delivery can anchor to event, release or effective time with signed offsets.
-Quiet hours are evaluated in an IANA timezone, retries use bounded exponential
-backoff, and exhausted work remains visible for authorised manual recovery.
+Quiet hours are evaluated both when work is scheduled and immediately before
+delivery in an IANA timezone. Email content is rendered from reviewed templates,
+retries use bounded exponential backoff, and exhausted work remains visible for
+authorised manual recovery.

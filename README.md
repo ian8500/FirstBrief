@@ -182,6 +182,9 @@ Email recipients are resolved from assigned approvers, subtype distributions and
 the configured identity-policy alert addresses. Duplicate processing does not
 send the same logical notification twice. Failed deliveries retry with bounded
 exponential delay and become visible as dead letters when exhausted.
+Reviewed text templates provide creation, approval and unapproved-at-effective
+email content. Quiet hours are checked again immediately before delivery so a
+delayed worker cannot send during a suppressed period.
 
 Retention jobs currently mark and audit records for review. They do not purge
 message data. Prompt 10 will add legal holds, purge preview/approval and purge
@@ -233,6 +236,10 @@ Celery Beat dispatches three idempotent processors every minute:
    retention-review and unapproved-at-effective work;
 3. delivery processing sends due email and records retry, dead-letter and audit
    evidence.
+
+Email content is stored in `templates/notifications/email/`, keeping operational
+copy reviewable without embedding it in worker code. Quiet hours are enforced at
+both initial scheduling and actual delivery.
 
 The database is authoritative. A worker outage delays execution but does not lose
 the schedule; overdue jobs are processed after recovery. Run only one Beat

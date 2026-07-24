@@ -207,13 +207,16 @@ def test_outer_rollback_removes_message_outbox_and_schedule(
 def test_outbox_materialises_one_deduplicated_notification(
     orchestration_data: dict[str, Any],
 ) -> None:
-    _instruction(orchestration_data)
+    message = _instruction(orchestration_data)
     now = timezone.now() + timedelta(minutes=1)
     assert process_outbox(now=now) == 1
     assert process_outbox(now=now) == 0
     job = NotificationJob.objects.get()
     assert job.kind == NotificationJob.Kind.CREATED
     assert job.recipients == ["approver@example.test", "distribution@example.test"]
+    assert job.subject == f"FirstBrief instruction awaiting approval: {message.message_id}"
+    assert "Scheduled instruction is awaiting approval." in job.body
+    assert "Release:" in job.body
     assert OutboxEvent.objects.get().status == OutboxEvent.Status.PUBLISHED
 
 
@@ -267,6 +270,31 @@ def test_quiet_hours_handle_overnight_dst_boundary() -> None:
     assert apply_quiet_hours(value, policy) == datetime(2026, 3, 29, 6, 0, tzinfo=UTC)
     daytime = datetime(2026, 3, 29, 12, 0, tzinfo=UTC)
     assert apply_quiet_hours(daytime, policy) == daytime
+
+
+def test_delivery_rechecks_quiet_hours_after_worker_delay(
+    orchestration_data: dict[str, Any],
+) -> None:
+    _instruction(orchestration_data, "QUIET-DELIVERY")
+    process_outbox(now=timezone.now() + timedelta(minutes=1))
+    policy = NotificationPolicy.load()
+    policy.quiet_hours_start = time(22, 0)
+    policy.quiet_hours_end = time(7, 0)
+    policy.timezone_name = "Europe/London"
+    policy.save()
+    job = NotificationJob.objects.get()
+    quiet_time = datetime.combine(job.next_attempt_at.date(), time(22, 30), tzinfo=UTC)
+    expected_delivery = apply_quiet_hours(quiet_time, policy)
+
+    assert deliver_notifications(now=quiet_time) == 0
+    job.refresh_from_db()
+    assert job.status == NotificationJob.Status.PENDING
+    assert job.attempts == 0
+    assert job.next_attempt_at == expected_delivery
+    assert not mail.outbox
+
+    assert deliver_notifications(now=job.next_attempt_at) == 1
+    assert len(mail.outbox) == 1
 
 
 def test_policy_validates_quiet_hour_pair_and_timezone() -> None:
