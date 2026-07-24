@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}{{ definition.code }} {{ definition.title }} | FirstBrief{% endblock %}
+{% block content %}
+  <p><a href="{% url 'reporting:catalogue' %}">Back to reports</a></p>
+  <h1>{{ definition.code }} — {{ definition.title }}</h1>
+  <p>{{ definition.description }}</p>
+  <form method="post" novalidate>
+    {% csrf_token %}
+    {{ form.non_field_errors }}
+    {% for field in form %}
+      <div class="form-row">
+        {{ field.label_tag }} {{ field }}
+        {% if field.help_text %}<small>{{ field.help_text }}</small>{% endif %}
+        {{ field.errors }}
+      </div>
+    {% endfor %}
+    <button type="submit">Generate report</button>
+  </form>
+{% endblock %}

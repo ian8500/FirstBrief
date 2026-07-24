@@ -24,6 +24,7 @@ APPROVE_MESSAGES = "approve-messages"
 MANAGE_MESSAGES = "manage-messages"
 SEE_ALL_PMG = "see-all-primary-message-groups"
 VIEW_AUDIT_HISTORY = "view-audit-history"
+VIEW_REPORTS = "view-reports"
 
 
 def has_capability(user: User, codename: str) -> bool:

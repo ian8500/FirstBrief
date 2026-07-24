@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}{{ run.report_code }} result | FirstBrief{% endblock %}
+{% block content %}
+  {% if run.status == "queued" or run.status == "running" %}<meta http-equiv="refresh" content="4">{% endif %}
+  <div class="report-actions">
+    <a href="{% url 'reporting:criteria' run.report_code %}{% if close_query %}?{{ close_query }}{% endif %}">Close</a>
+    {% if run.status == "complete" %}
+      <a href="{% url 'reporting:csv' run.pk %}">Download CSV</a>
+      <a href="{% url 'reporting:pdf' run.pk %}">Download PDF</a>
+      <button type="button" onclick="window.print()">Print</button>
+    {% endif %}
+  </div>
+  <h1>{{ run.report_code }} — {{ definition.title }}</h1>
+  <p>Status: <strong>{{ run.get_status_display }}</strong>{% if run.status == "complete" %}; {{ run.row_count }} rows{% endif %}</p>
+  {% if run.status == "failed" %}<p role="alert">{{ run.error }}</p>{% endif %}
+  {% if run.status == "complete" %}
+    <div class="table-scroll">
+      <table>
+        <thead><tr>{% for column in run.columns %}<th scope="col">{{ column }}</th>{% endfor %}</tr></thead>
+        <tbody>
+          {% for row in run.rows %}
+            <tr>{% for value in row %}<td>{{ value }}</td>{% endfor %}</tr>
+          {% empty %}
+            <tr><td colspan="{{ run.columns|length }}">No matching records.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endif %}
+{% endblock %}

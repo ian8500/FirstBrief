@@ -57,6 +57,7 @@ INSTALLED_APPS = [
     "firstbrief.notifications",
     "firstbrief.operations",
     "firstbrief.retrieval",
+    "firstbrief.reporting",
 ]
 
 MIDDLEWARE = [
@@ -107,6 +108,7 @@ TEMPLATES = [
                 "firstbrief.configuration.context_processors.configuration_access",
                 "firstbrief.messaging.context_processors.message_access",
                 "firstbrief.notifications.context_processors.notification_access",
+                "firstbrief.reporting.context_processors.reporting_access",
             ],
         },
     },
