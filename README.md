@@ -10,7 +10,7 @@ Detailed design decisions and phase evidence remain in `docs/`.
 
 ## Current delivery status
 
-Prompts 0–5 are implemented. Prompt 6 is the next delivery phase.
+Prompts 0–6 are implemented and verified.
 
 | Phase | Delivered capability |
 | --- | --- |
@@ -20,7 +20,7 @@ Prompts 0–5 are implemented. Prompt 6 is the next delivery phase.
 | Prompt 3 | Sites, groups, message types, subtypes, approval and distribution configuration |
 | Prompt 4 | Message authoring, immutable versions, approval, lifecycle commands, PDFs and audience rights |
 | Prompt 5 | Transactional outbox, scheduled lifecycle transitions, notifications, retries and operational recovery |
-| Prompt 6 | Planned: the main reader-facing UI and message-consumption experience |
+| Prompt 6 | Operational dashboard, reader lists, secure viewer, acknowledgement and access evidence |
 
 The controlling requirements contain 121 inventoried source requirements.
 Seventeen proposed gap-closing requirements are tracked separately and are not
@@ -108,6 +108,61 @@ The principal capabilities are:
   where expressly authorised.
 
 Users normally see only messages in their authorised site and group scope.
+
+### Use the operational dashboard
+
+After sign-in, the dashboard at `/` shows:
+
+- mandatory messages that became effective since the previous login, even when
+  they have already been read or cleared;
+- messages inside the configured forthcoming window, identified by a diamond,
+  the word **Forthcoming** and the configured colour;
+- current Briefs of the Day for the default message group, or every applicable
+  group when no default is set;
+- unread counts and links to Mandatory and Other Messages.
+
+The **Mandatory** and **Other messages** navigation is available to signed-in
+users. Message results are still restricted on the server by active role,
+message-type permission, site, group membership and audience rights. A
+Prohibited right takes precedence over Allowed or Mandatory.
+
+### Read and acknowledge messages
+
+Open **Mandatory** to see required messages or **Other messages** for reference
+content and messages already cleared. Both lists can be sorted by Message,
+Effective, Expires, Printed or Emailed and grouped by subtype with unread counts.
+Unread, overdue and forthcoming states always include text or a symbol; colour is
+not the only cue.
+
+Opening a message records an access event and starts a viewing session. BOTD text
+appears directly; Instructions display their protected PDF through an authorised,
+private, same-origin endpoint.
+
+When finishing a mandatory message:
+
+1. Choose **Read** to record reading and keep it in Mandatory Messages.
+2. Choose **Read & Clear** to make the compliance acknowledgement and move it to
+   Other Messages.
+3. Select **Confirm and close**.
+
+Foreground, non-idle viewing seconds are accumulated across sessions. This
+duration is supporting information; **Read & Clear**, not elapsed time, is the
+compliance action. Closed viewing sessions cannot be replayed to add evidence.
+
+The viewer also provides:
+
+- **Print**, which records the event and opens a print-friendly view;
+- **Email to me**, which queues delivery to the address on your profile;
+- **Send feedback**, pre-populated with message metadata and delivered to the
+  originator and authorised administrators.
+
+Instruction email contains an authenticated link rather than attaching the
+protected PDF. On logout, the confirmation page lists messages accessed during
+the browser session.
+
+Configuration managers can use `/operational/settings/` to set the forthcoming
+window, forthcoming colour and idle timeout. The colour setting is always
+supplemented by text and an icon.
 
 ### Configure the message taxonomy
 
@@ -216,6 +271,8 @@ The main bounded components are:
   protected files and lifecycle state.
 - `firstbrief.notifications` — transactional outbox, lifecycle schedule,
   notification policy, delivery retries and recovery operations.
+- `firstbrief.operations` — scoped dashboard queries, reading receipts,
+  append-only access events, viewing sessions and acknowledgement workflows.
 - `firstbrief.core` — application shell, error handling, request correlation,
   health checks and shared audit services.
 
@@ -240,6 +297,11 @@ Celery Beat dispatches three idempotent processors every minute:
 Email content is stored in `templates/notifications/email/`, keeping operational
 copy reviewable without embedding it in worker code. Quiet hours are enforced at
 both initial scheduling and actual delivery.
+
+Operational email-to-self and feedback requests are persisted as notification
+jobs and use the same recoverable delivery worker. Structured access events are
+append-only; mutable `MessageReceipt` rows hold each user’s current read, cleared,
+printed, emailed and cumulative viewing state.
 
 The database is authoritative. A worker outage delays execution but does not lose
 the schedule; overdue jobs are processed after recovery. Run only one Beat
@@ -331,6 +393,13 @@ See `docs/deployment.md` for the operational detail.
   account is active and not locked, and the password has not expired.
 - **No menu item:** the account lacks the required capability or site/group
   scope; ask an authorised administrator to review the assignment.
+- **Expected message is missing:** confirm the user has an active role granting
+  its message type, matching site/group membership, no Prohibited audience right,
+  and that a forthcoming message is inside the configured window.
+- **Viewing time did not increase:** time is credited when the viewer is closed;
+  it pauses while the tab is hidden or the reader is idle.
+- **Read message remains mandatory:** choose Read & Clear when closing to record
+  the compliance acknowledgement.
 - **Scheduled state did not change:** confirm Redis, the worker and the single
   Beat service are healthy, then inspect lifecycle dead letters.
 - **Email not delivered:** check the email backend, recent notification status
@@ -374,5 +443,4 @@ information-classification approval.
 - `docs/requirements-traceability.csv` — implementation evidence by requirement.
 - `docs/adr/` — architecture decision records.
 
-The next product phase is Prompt 6, which develops the main reader-facing UI and
-message-consumption workflow.
+The next product phase is Prompt 7: scoped search and maintenance.

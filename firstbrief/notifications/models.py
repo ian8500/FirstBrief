@@ -125,6 +125,8 @@ class NotificationJob(models.Model):
         APPROVED = "approved", "Message approved"
         UNAPPROVED_EFFECTIVE = "unapproved_effective", "Unapproved at effective time"
         MANUAL_RESEND = "manual_resend", "Manual resend"
+        MESSAGE_TO_SELF = "message_to_self", "Message emailed to user"
+        FEEDBACK = "feedback", "Message feedback"
 
     class Status(models.TextChoices):
         PENDING = "pending", "Pending"

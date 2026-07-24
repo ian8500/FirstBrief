@@ -1,0 +1,6 @@
+Feedback about {{ message.message_id }} — {{ version.title }}
+From: {{ actor.get_full_name|default:actor.username }} ({{ actor.username }})
+
+Subject: {{ feedback_subject }}
+
+{{ feedback_body }}

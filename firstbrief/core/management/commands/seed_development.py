@@ -29,6 +29,7 @@ from firstbrief.identity.services import (
     SEE_ALL_PMG,
 )
 from firstbrief.notifications.models import NotificationPolicy
+from firstbrief.operations.models import OperationalPolicy
 
 
 class Command(BaseCommand):
@@ -99,6 +100,7 @@ class Command(BaseCommand):
         role.message_types.set(MessageType.objects.all())
         IdentityPolicy.load()
         NotificationPolicy.load()
+        OperationalPolicy.load()
 
         password = os.environ.get("FIRSTBRIEF_DEVELOPMENT_ADMIN_PASSWORD")
         if not password:

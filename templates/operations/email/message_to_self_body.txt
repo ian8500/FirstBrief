@@ -1,0 +1,10 @@
+FirstBrief message {{ message.message_id }}
+{{ version.title }}
+
+{{ version.summary }}
+{% if message.kind == "botd" %}
+{{ version.text_content }}
+{% else %}
+The protected Instruction PDF is available after you sign in:
+{{ secure_url }}
+{% endif %}

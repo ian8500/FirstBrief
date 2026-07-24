@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% load tz %}
+{% block title %}Operational dashboard · FirstBrief{% endblock %}
+{% block content %}
+  {% timezone site_timezone %}
+    <section class="operational-hero" aria-labelledby="page-title">
+      <div>
+        <p class="eyebrow">Operational dashboard</p>
+        <h1 id="page-title" class="page-title">Your briefings</h1>
+        <p class="lead">Prioritise mandatory reading, forthcoming instructions and today’s briefs.</p>
+      </div>
+      <dl class="dashboard-counts" aria-label="Unread message counts">
+        <div><dt>Mandatory unread</dt><dd>{{ mandatory_unread }}</dd></div>
+        <div><dt>Other unread</dt><dd>{{ other_unread }}</dd></div>
+      </dl>
+    </section>
+
+    <div class="dashboard-grid">
+      <section class="dashboard-panel dashboard-panel-wide" aria-labelledby="effective-heading">
+        <div class="section-heading">
+          <div>
+            <p class="section-kicker">Since your previous login</p>
+            <h2 id="effective-heading">Newly effective mandatory messages</h2>
+          </div>
+          <a href="{% url 'operations:mandatory' %}">View all mandatory</a>
+        </div>
+        <ul class="brief-card-list">
+          {% for message in effective_since %}
+            <li>
+              <a href="{% url 'operations:viewer' message.pk %}">
+                <strong>{{ message.message_id }}</strong>
+                <span>{{ message.current_version.title }}</span>
+              </a>
+              <span class="status-label status-effective">
+                <span aria-hidden="true">●</span> Effective
+                {{ message.current_version.effective_at|default:message.current_version.release_at|date:"j M Y, H:i" }}
+              </span>
+            </li>
+          {% empty %}
+            <li class="empty-state">No mandatory messages became effective since your previous login.</li>
+          {% endfor %}
+        </ul>
+      </section>
+
+      <section class="dashboard-panel" aria-labelledby="forthcoming-heading">
+        <p class="section-kicker">Next {{ policy.pre_effective_hours }} hours</p>
+        <h2 id="forthcoming-heading">Forthcoming</h2>
+        <ul class="compact-list">
+          {% for message in forthcoming %}
+            <li>
+              <span class="status-symbol forthcoming-symbol" style="--forthcoming: {{ policy.pre_effective_colour }}" aria-hidden="true">◆</span>
+              <a href="{% url 'operations:viewer' message.pk %}">{{ message.message_id }} — {{ message.current_version.title }}</a>
+              <small>Forthcoming · effective {{ message.current_version.effective_at|date:"j M, H:i" }}</small>
+            </li>
+          {% empty %}
+            <li class="empty-state">No forthcoming messages in this window.</li>
+          {% endfor %}
+        </ul>
+      </section>
+
+      <section class="dashboard-panel" aria-labelledby="botd-heading">
+        <p class="section-kicker">Current notices</p>
+        <h2 id="botd-heading">Briefs of the Day</h2>
+        <ul class="compact-list">
+          {% for message in botd %}
+            <li>
+              <a href="{% url 'operations:viewer' message.pk %}"><strong>{{ message.current_version.title }}</strong></a>
+              <small>{{ message.message_id }} · released {{ message.current_version.release_at|date:"H:i" }}</small>
+            </li>
+          {% empty %}
+            <li class="empty-state">No current Briefs of the Day for your groups.</li>
+          {% endfor %}
+        </ul>
+      </section>
+    </div>
+
+    <section class="dashboard-actions" aria-label="Message lists">
+      <a class="action-card" href="{% url 'operations:mandatory' %}">
+        <span class="action-card-icon" aria-hidden="true">!</span>
+        <span><strong>Mandatory Messages</strong><small>Read, acknowledge and clear required instructions.</small></span>
+      </a>
+      <a class="action-card" href="{% url 'operations:other' %}">
+        <span class="action-card-icon" aria-hidden="true">↗</span>
+        <span><strong>Other Messages</strong><small>Open reference content and previously cleared messages.</small></span>
+      </a>
+    </section>
+  {% endtimezone %}
+{% endblock %}

@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% load tz %}
+{% block title %}Print {{ message.message_id }} · FirstBrief{% endblock %}
+{% block content %}
+  {% timezone site_timezone %}
+    <article class="print-document">
+      <header>
+        <p>FirstBrief · {{ message.message_id }}</p>
+        <h1 class="page-title">{{ version.title }}</h1>
+        <p>{{ message.get_kind_display }} · Effective {{ version.effective_at|default:version.release_at|date:"j M Y, H:i" }}</p>
+      </header>
+      {% if message.kind == "botd" %}
+        {{ version.text_content|linebreaks }}
+      {% elif print_asset %}
+        <p>The protected print PDF opens separately for printing.</p>
+        <p><a href="{% url 'operations:file' message.pk print_asset.pk %}" target="_blank" rel="noopener">Open protected print PDF</a></p>
+      {% endif %}
+    </article>
+    <script>window.addEventListener("load", () => window.print());</script>
+  {% endtimezone %}
+{% endblock %}

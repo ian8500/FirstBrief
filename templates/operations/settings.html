@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Operational display settings · FirstBrief{% endblock %}
+{% block content %}
+  <section class="panel narrow">
+    <p class="eyebrow">Configuration</p>
+    <h1 class="page-title">Operational display settings</h1>
+    <p>Colour is supplemented by explicit text and symbols throughout the interface.</p>
+    <form method="post" novalidate>
+      {% csrf_token %}
+      {% if form.errors %}<div class="validation-summary" role="alert"><h2>There is a problem</h2></div>{% endif %}
+      {% for field in form %}
+        <div class="form-group">
+          {{ field.label_tag }} {{ field }}
+          {% if field.help_text %}<p class="help">{{ field.help_text }}</p>{% endif %}
+          {% for error in field.errors %}<p class="error">{{ error }}</p>{% endfor %}
+        </div>
+      {% endfor %}
+      <button type="submit">Save display settings</button>
+    </form>
+  </section>
+{% endblock %}
