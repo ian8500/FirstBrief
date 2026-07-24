@@ -9,6 +9,8 @@
 - Idempotent late-job catch-up using the Prompt 4 domain state machine.
 - Configurable event/release/effective notification anchors, signed offsets,
   IANA-timezone quiet hours, retry limits and retry delay.
+- File-based creation, approval and unapproved-at-effective email templates,
+  with quiet hours rechecked immediately before delivery.
 - Deduplicated notification jobs, bounded exponential retry, dead-letter state,
   audit evidence and authorised manual resend.
 - Celery tasks and one-minute Beat entries for outbox processing, lifecycle
@@ -26,6 +28,7 @@ The Prompt 5 tests exercise:
 - worker-outage catch-up through release, expiry and archive;
 - unapproved-at-effective policy alerts;
 - quiet hours across the Europe/London DST boundary;
+- delayed-worker delivery that reaches the queue during quiet hours;
 - retry, dead-letter and manual resend behaviour;
 - revision rescheduling and stale-job cancellation;
 - Celery entry points and permission-protected operations UI.

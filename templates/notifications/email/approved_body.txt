@@ -1,0 +1,4 @@
+{{ message.message_id }} - {{ version.title }} has been approved.
+
+Release: {{ version.release_at }}
+Effective: {{ version.effective_at|default:"Not applicable" }}

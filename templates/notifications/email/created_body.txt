@@ -1,0 +1,4 @@
+{{ message.message_id }} - {{ version.title }} is awaiting approval.
+
+Release: {{ version.release_at }}
+Effective: {{ version.effective_at|default:"Not applicable" }}

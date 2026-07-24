@@ -10,6 +10,7 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.mail import send_mail
 from django.db import transaction
+from django.template.loader import render_to_string
 from django.utils import timezone
 
 from firstbrief.assurance.services import record_event
@@ -216,24 +217,21 @@ def register_message_approved(message: Message, *, at: datetime | None = None) -
 
 
 def _notification_copy(topic: str, message: Message) -> tuple[str, str, str]:
-    title = message.current_version.title
-    if topic == MESSAGE_CREATED:
-        return (
-            NotificationJob.Kind.CREATED,
-            f"FirstBrief instruction awaiting approval: {message.message_id}",
-            f"{message.message_id} - {title} is awaiting approval.",
-        )
-    if topic == MESSAGE_APPROVED:
-        return (
-            NotificationJob.Kind.APPROVED,
-            f"FirstBrief instruction approved: {message.message_id}",
-            f"{message.message_id} - {title} has been approved.",
-        )
-    return (
-        NotificationJob.Kind.UNAPPROVED_EFFECTIVE,
-        f"FirstBrief instruction remains unapproved: {message.message_id}",
-        f"{message.message_id} - {title} reached its effective time without approval.",
-    )
+    template_names = {
+        MESSAGE_CREATED: ("created", NotificationJob.Kind.CREATED),
+        MESSAGE_APPROVED: ("approved", NotificationJob.Kind.APPROVED),
+        UNAPPROVED_EFFECTIVE: (
+            "unapproved_effective",
+            NotificationJob.Kind.UNAPPROVED_EFFECTIVE,
+        ),
+    }
+    template_name, kind = template_names[topic]
+    context = {"message": message, "version": message.current_version}
+    subject = " ".join(
+        render_to_string(f"notifications/email/{template_name}_subject.txt", context).splitlines()
+    ).strip()
+    body = render_to_string(f"notifications/email/{template_name}_body.txt", context).strip()
+    return kind, subject, body
 
 
 @transaction.atomic
@@ -417,6 +415,11 @@ def deliver_notifications(*, now: datetime | None = None, limit: int = 100) -> i
     sent = 0
     policy = NotificationPolicy.load()
     for job in jobs:
+        allowed_at = apply_quiet_hours(current, policy)
+        if allowed_at > current:
+            job.next_attempt_at = allowed_at
+            job.save(update_fields=("next_attempt_at",))
+            continue
         job.attempts += 1
         try:
             send_mail(
