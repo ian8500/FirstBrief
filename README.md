@@ -30,7 +30,7 @@ listed in `docs/release-candidate.md`.
 | Prompt 12 | Release gates, clean/upgrade/recovery runbook and complete verification evidence |
 
 The controlling requirements contain 121 inventoried source requirements.
-Seventeen proposed gap-closing requirements are tracked separately and are not
+Nineteen proposed gap-closing requirements are tracked separately and are not
 silently treated as approved source requirements.
 
 ### Product UX audit
@@ -133,13 +133,24 @@ Users normally see only messages in their authorised site and group scope.
 
 After sign-in, the dashboard at `/` shows:
 
-- mandatory messages that became effective since the previous login, even when
-  they have already been read or cleared;
-- messages inside the configured forthcoming window, identified by a diamond,
-  the word **Forthcoming** and the configured colour;
-- current Briefs of the Day for the default message group, or every applicable
-  group when no default is set;
-- unread counts and links to Mandatory and Other Messages.
+- one **Requires your attention** queue ordered by urgency and relevant time;
+- uncleared effective mandatory messages and messages that became effective
+  since the previous login;
+- forthcoming messages and unread Briefs of the Day;
+- assigned approvals, returned drafts, expiring Instructions and failed
+  deliveries only when the signed-in user has the necessary capability;
+- **Continue reading** for a recently opened message that remains uncleared; and
+- authorised counts and links to Mandatory and Other Messages.
+
+Every task explains why it appears and provides only an action the user is
+authorised to perform. Urgency uses text and symbols as well as colour. If an
+optional administrator data source is unavailable, reader tasks remain available
+with a degraded-state notice.
+
+Select **Customise dashboard** to save optional categories, item limit and the
+expiring-instruction review window against your user account. Preferences remove
+items from view but never grant access. See `docs/attention-inbox.md` for the
+selection, authorisation and ordering rules.
 
 The **Mandatory** and **Other messages** navigation is available to signed-in
 users. Message results are still restricted on the server by active role,
@@ -154,20 +165,34 @@ Effective, Expires, Printed or Emailed and grouped by subtype with unread counts
 Unread, overdue and forthcoming states always include text or a symbol; colour is
 not the only cue.
 
-Opening a message records an access event and starts a viewing session. BOTD text
-appears directly; Instructions display their protected PDF through an authorised,
-private, same-origin endpoint.
+Opening a message records an access event and a version-bound viewing session.
+BOTD text appears directly; Instructions display their protected PDF through an
+authorised, private, same-origin endpoint. The enhanced reader remembers the last
+page for each user and version, shows progress, protected page previews, PDF
+bookmarks and embedded-text search where available.
+
+Previous/next Mandatory and related-message links use the same audience-scoped
+query as the message lists. Keyboard help is available with `?`; J/K changes PDF
+page, `/` focuses search, and `[`/`]` moves through the authorised Mandatory
+sequence. Supersession, version changes and lifecycle changes are shown as
+explicit banners.
 
 When finishing a mandatory message:
 
-1. Choose **Read** to record reading and keep it in Mandatory Messages.
-2. Choose **Read & Clear** to make the compliance acknowledgement and move it to
-   Other Messages.
-3. Select **Confirm and close**.
+1. Choose **Mark as read** to record reading and keep it in Mandatory Messages.
+2. Choose **Acknowledge and clear** to record explicit acknowledgement and move
+   it to Other Messages.
+3. Select **Confirm reading decision**.
 
 Foreground, non-idle viewing seconds are accumulated across sessions. This
-duration is supporting information; **Read & Clear**, not elapsed time, is the
-compliance action. Closed viewing sessions cannot be replayed to add evidence.
+duration is supporting information; **Acknowledge and clear**, not elapsed time,
+is the compliance action. Opened, Read, Acknowledged and Cleared are separate,
+version-bound evidence events. Closed viewing sessions cannot be replayed.
+
+If a message expires, is cancelled, loses audience access or gains a new version
+while open, acknowledgement is disabled. The server records safe reading time
+but refuses stale acknowledgement/clear evidence. See `docs/message-reader.md`
+for the complete security, evidence and keyboard model.
 
 The viewer also provides:
 

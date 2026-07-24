@@ -13,6 +13,16 @@ urlpatterns = [
     path("messages/<uuid:message_pk>/email/", views.email_message, name="email"),
     path("messages/<uuid:message_pk>/feedback/", views.feedback, name="feedback"),
     path(
+        "messages/<uuid:message_pk>/position/",
+        views.reading_position,
+        name="reading-position",
+    ),
+    path(
+        "messages/<uuid:message_pk>/status/",
+        views.viewer_status,
+        name="viewer-status",
+    ),
+    path(
         "messages/<uuid:message_pk>/files/<uuid:asset_pk>/",
         views.protected_file,
         name="file",

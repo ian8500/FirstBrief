@@ -1,15 +1,20 @@
 from __future__ import annotations
 
 from datetime import timedelta
+from io import BytesIO
 from pathlib import Path
 from typing import Any
+from unittest.mock import patch
 
 import pytest
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
+from django.db import DatabaseError, connection
 from django.test import Client, override_settings
+from django.test.utils import CaptureQueriesContext
 from django.utils import timezone
+from reportlab.pdfgen import canvas
 
 from firstbrief.assurance.models import AuditEvent
 from firstbrief.configuration.models import (
@@ -20,19 +25,26 @@ from firstbrief.configuration.models import (
     Site,
 )
 from firstbrief.identity.models import Capability, Role, User
-from firstbrief.identity.services import MANAGE_CONFIGURATION
+from firstbrief.identity.services import (
+    APPROVE_MESSAGES,
+    MANAGE_CONFIGURATION,
+    MANAGE_MESSAGES,
+)
 from firstbrief.messaging.models import (
     FileAsset,
     Message,
     MessageAudienceRight,
+    MessageStatusHistory,
     MessageVersion,
 )
 from firstbrief.notifications.models import NotificationJob
 from firstbrief.operations.models import (
+    DashboardPreference,
     MessageAccessEvent,
     MessageReceipt,
     MessageViewSession,
     OperationalPolicy,
+    ReadingPosition,
 )
 from firstbrief.operations.services import (
     accessible_message,
@@ -381,10 +393,40 @@ def test_dashboard_viewer_lists_logout_and_policy_permissions(
     assert "General" in mandatory.content.decode()
     viewer = client.get(f"/operational/messages/{message.pk}/")
     assert viewer.status_code == 200
-    assert "Read &amp; Clear is the compliance acknowledgement" in viewer.content.decode()
+    assert "Acknowledge" in viewer.content.decode()
     logout = client.get("/access/logout/")
     assert "BROWSER-FLOW" in logout.content.decode()
-    assert client.get("/operational/settings/").status_code == 403
+    settings_page = client.get("/operational/settings/")
+    assert settings_page.status_code == 200
+    assert "Your dashboard" in settings_page.content.decode()
+    denied_policy = client.post(
+        "/operational/settings/",
+        {
+            "save_policy": "1",
+            "pre_effective_hours": 48,
+            "pre_effective_colour": "#123456",
+            "idle_timeout_seconds": 90,
+        },
+    )
+    assert denied_policy.status_code == 403
+
+    preferences_response = client.post(
+        "/operational/settings/",
+        {
+            "save_preferences": "1",
+            "show_forthcoming": "on",
+            "show_botd": "on",
+            "show_approvals": "on",
+            "show_returned_drafts": "on",
+            "show_recently_opened": "on",
+            "item_limit": "5",
+            "expiring_within_days": "14",
+        },
+    )
+    assert preferences_response.status_code == 302
+    preference = DashboardPreference.load_for(operational_data["reader"])
+    assert preference.item_limit == 5
+    assert preference.expiring_within_days == 14
 
     capability = Capability.objects.create(
         codename=MANAGE_CONFIGURATION,
@@ -394,6 +436,7 @@ def test_dashboard_viewer_lists_logout_and_policy_permissions(
     settings_response = client.post(
         "/operational/settings/",
         {
+            "save_policy": "1",
             "pre_effective_hours": 48,
             "pre_effective_colour": "#123456",
             "idle_timeout_seconds": 90,
@@ -403,6 +446,186 @@ def test_dashboard_viewer_lists_logout_and_policy_permissions(
     policy = OperationalPolicy.load()
     assert policy.pre_effective_hours == 48
     assert policy.pre_effective_colour == "#123456"
+
+
+def test_attention_inbox_is_role_scoped_ordered_and_explains_each_item(
+    client: Client,
+    operational_data: dict[str, Any],
+) -> None:
+    reader = operational_data["reader"]
+    for codename, name in (
+        (APPROVE_MESSAGES, "Approve messages"),
+        (MANAGE_MESSAGES, "Manage messages"),
+    ):
+        reader.direct_capabilities.add(Capability.objects.create(codename=codename, name=name))
+
+    overdue = create_operational_message(operational_data, "A-OVERDUE")
+    continued = create_operational_message(operational_data, "B-CONTINUE")
+    MessageReceipt.objects.create(
+        user=reader,
+        message=continued,
+        first_read_at=timezone.now() - timedelta(minutes=10),
+        last_accessed_at=timezone.now() - timedelta(minutes=5),
+    )
+    forthcoming = create_operational_message(
+        operational_data,
+        "C-FORTHCOMING",
+        status=Message.Status.RELEASED_PENDING_EFFECTIVE,
+        effective_delta=timedelta(hours=2),
+    )
+    approval = create_operational_message(
+        operational_data,
+        "D-APPROVAL",
+        status=Message.Status.DRAFT,
+    )
+    approval.approvers.add(reader)
+    returned = create_operational_message(
+        operational_data,
+        "E-RETURNED",
+        status=Message.Status.DRAFT,
+    )
+    returned.originator = reader
+    returned.save(update_fields=("originator", "updated_at"))
+    MessageStatusHistory.objects.create(
+        message=returned,
+        from_status=Message.Status.APPROVED_PENDING_RELEASE,
+        to_status=Message.Status.DRAFT,
+        actor=operational_data["originator"],
+        reason="Correct the operational date.",
+        aggregate_version=2,
+    )
+    expiring = create_operational_message(
+        operational_data,
+        "F-EXPIRING",
+        right=MessageAudienceRight.Right.ALLOWED,
+    )
+    failed = NotificationJob.objects.create(
+        message=expiring,
+        kind=NotificationJob.Kind.APPROVED,
+        recipients=["ops@example.test"],
+        subject="Delivery for F-EXPIRING",
+        body="body",
+        deduplication_key="attention-failed-visible",
+        scheduled_at=timezone.now(),
+        next_attempt_at=timezone.now(),
+        status=NotificationJob.Status.DEAD,
+    )
+    hidden_message = create_operational_message(
+        operational_data,
+        "SOUTH-FAILED",
+        group=operational_data["south_group"],
+    )
+    NotificationJob.objects.create(
+        message=hidden_message,
+        kind=NotificationJob.Kind.APPROVED,
+        recipients=["south@example.test"],
+        subject="Leaking subject",
+        body="body",
+        deduplication_key="attention-failed-hidden",
+        scheduled_at=timezone.now(),
+        next_attempt_at=timezone.now(),
+        status=NotificationJob.Status.DEAD,
+    )
+
+    result = dashboard_data(reader, timezone.now() - timedelta(hours=4))
+    items = result["attention_items"]
+    references = [item.reference for item in items]
+    assert overdue.message_id in references
+    assert continued.message_id in references
+    assert forthcoming.message_id in references
+    assert approval.message_id in references
+    assert returned.message_id in references
+    assert failed.message.message_id in references
+    assert "SOUTH-FAILED" not in references
+    assert all(item.reason for item in items)
+    ordering = [
+        (item.urgency_rank, item.due_at, item.reference.casefold()) for item in items
+    ]
+    assert ordering == sorted(ordering)
+    assert result["continue_item"].reference == continued.message_id
+
+    client.force_login(reader)
+    response = client.get("/")
+    html = response.content.decode()
+    assert 'aria-labelledby="attention-heading"' in html
+    assert "Requires your attention" in html
+    assert "Continue reading" in html
+    assert "Correct the operational date." in html
+    assert "Leaking subject" not in html
+    assert "data-loading-link" in html
+
+
+def test_attention_inbox_preferences_do_not_grant_or_leak_capabilities(
+    operational_data: dict[str, Any],
+) -> None:
+    reader = operational_data["reader"]
+    approval = create_operational_message(
+        operational_data,
+        "HIDDEN-APPROVAL",
+        status=Message.Status.DRAFT,
+    )
+    approval.approvers.add(reader)
+    failed_message = create_operational_message(
+        operational_data,
+        "HIDDEN-FAILURE",
+        right=MessageAudienceRight.Right.ALLOWED,
+    )
+    NotificationJob.objects.create(
+        message=failed_message,
+        kind=NotificationJob.Kind.APPROVED,
+        recipients=["ops@example.test"],
+        subject="Hidden failed delivery",
+        body="body",
+        deduplication_key="attention-no-capability",
+        scheduled_at=timezone.now(),
+        next_attempt_at=timezone.now(),
+        status=NotificationJob.Status.DEAD,
+    )
+    preference = DashboardPreference.load_for(reader)
+    preference.show_approvals = True
+    preference.show_notification_failures = True
+    preference.save()
+
+    result = dashboard_data(reader, timezone.now() - timedelta(days=1))
+    keys = {item.key for item in result["attention_items"]}
+    assert not any(key.startswith("approval:") for key in keys)
+    assert not any(key.startswith("notification:") for key in keys)
+
+
+def test_attention_query_count_does_not_grow_per_message(
+    operational_data: dict[str, Any],
+) -> None:
+    reader = operational_data["reader"]
+    OperationalPolicy.load()
+    DashboardPreference.load_for(reader)
+    create_operational_message(operational_data, "QUERY-ONE")
+    with CaptureQueriesContext(connection) as one_context:
+        dashboard_data(reader, timezone.now() - timedelta(days=1))
+    for index in range(8):
+        create_operational_message(operational_data, f"QUERY-{index + 2}")
+    with CaptureQueriesContext(connection) as many_context:
+        dashboard_data(reader, timezone.now() - timedelta(days=1))
+    assert len(many_context) <= len(one_context) + 2
+
+
+def test_attention_inbox_degrades_without_losing_reader_tasks(
+    operational_data: dict[str, Any],
+) -> None:
+    reader = operational_data["reader"]
+    reader.direct_capabilities.add(
+        Capability.objects.create(codename=MANAGE_MESSAGES, name="Manage messages")
+    )
+    message = create_operational_message(operational_data, "DEGRADED-READER-TASK")
+    with patch(
+        "firstbrief.operations.services.NotificationJob.objects.filter",
+        side_effect=DatabaseError("notification store unavailable"),
+    ):
+        result = dashboard_data(reader, timezone.now() - timedelta(days=1))
+    assert message.message_id in {item.reference for item in result["attention_items"]}
+    assert result["degraded_messages"] == [
+        "Notification delivery status is temporarily unavailable. "
+        "Message-reading tasks are unaffected."
+    ]
 
 
 def test_close_endpoint_read_then_clear_moves_between_lists(
@@ -469,6 +692,249 @@ def test_protected_pdf_requires_scope_and_sets_private_headers(
         client.force_login(operational_data["outsider"])
         forbidden = client.get(f"/operational/messages/{message.pk}/files/{asset.pk}/")
         assert forbidden.status_code == 403
+
+
+def _searchable_pdf() -> bytes:
+    output = BytesIO()
+    document = canvas.Canvas(output)
+    document.bookmarkPage("overview")
+    document.addOutlineEntry("Overview", "overview", level=0)
+    document.drawString(72, 760, "Alpha operational overview")
+    document.showPage()
+    document.bookmarkPage("actions")
+    document.addOutlineEntry("Required actions", "actions", level=0)
+    document.drawString(72, 760, "Bravo required actions")
+    document.showPage()
+    document.save()
+    return output.getvalue()
+
+
+def _attach_display_pdf(
+    message: Message,
+    *,
+    uploader: User,
+    storage_key: str,
+) -> FileAsset:
+    payload = _searchable_pdf()
+    key = default_storage.save(storage_key, ContentFile(payload))
+    return FileAsset.objects.create(
+        version=message.current_version,
+        role=FileAsset.Role.DISPLAY,
+        original_filename="reader.pdf",
+        storage_key=key,
+        content_type="application/pdf",
+        byte_size=len(payload),
+        sha256="1" * 64,
+        scan_status=FileAsset.ScanStatus.CLEAN,
+        uploaded_by=uploader,
+    )
+
+
+def test_prohibited_message_and_pdf_are_denied(
+    client: Client,
+    operational_data: dict[str, Any],
+    tmp_path: Path,
+) -> None:
+    with override_settings(MEDIA_ROOT=tmp_path):
+        message = create_operational_message(operational_data, "PROHIBITED-READER")
+        MessageAudienceRight.objects.create(
+            message=message,
+            message_group=operational_data["other_group"],
+            right=MessageAudienceRight.Right.PROHIBITED,
+        )
+        asset = _attach_display_pdf(
+            message,
+            uploader=operational_data["originator"],
+            storage_key="quarantine/prohibited.pdf",
+        )
+        client.force_login(operational_data["reader"])
+        assert client.get(f"/operational/messages/{message.pk}/").status_code == 403
+        assert (
+            client.get(f"/operational/messages/{message.pk}/files/{asset.pk}/").status_code
+            == 403
+        )
+
+
+def test_reader_persists_page_and_exposes_protected_pdf_navigation(
+    client: Client,
+    operational_data: dict[str, Any],
+    tmp_path: Path,
+) -> None:
+    with override_settings(MEDIA_ROOT=tmp_path):
+        message = create_operational_message(operational_data, "POSITION-PDF")
+        _attach_display_pdf(
+            message,
+            uploader=operational_data["originator"],
+            storage_key="quarantine/position.pdf",
+        )
+        reader = operational_data["reader"]
+        client.force_login(reader)
+        response = client.get(f"/operational/messages/{message.pk}/")
+        session = response.context["view_session"]
+        html = response.content.decode()
+        assert "Page thumbnails" in html
+        assert "Required actions" in html
+        assert "Search this PDF" in html
+        assert 'title="Protected display PDF for POSITION-PDF, version 1"' in html
+        saved = client.post(
+            f"/operational/messages/{message.pk}/position/",
+            {"view_session": session.pk, "page": 2, "total_pages": 2},
+        )
+        assert saved.status_code == 200
+        assert saved.json()["progress"] == 100
+        position = ReadingPosition.objects.get(user=reader, message=message)
+        assert position.page == 2
+
+        reopened = client.get(f"/operational/messages/{message.pk}/")
+        assert reopened.context["last_page"] == 2
+        assert "#page=2" in reopened.content.decode()
+
+
+def test_reading_position_is_isolated_by_message_version(
+    client: Client,
+    operational_data: dict[str, Any],
+) -> None:
+    message = create_operational_message(operational_data, "VERSION-POSITION")
+    reader = operational_data["reader"]
+    client.force_login(reader)
+    first = client.get(f"/operational/messages/{message.pk}/")
+    first_session = first.context["view_session"]
+    saved = client.post(
+        f"/operational/messages/{message.pk}/position/",
+        {"view_session": first_session.pk, "page": 3, "total_pages": 4},
+    )
+    assert saved.status_code == 200
+
+    original = message.current_version
+    replacement = MessageVersion.objects.create(
+        message=message,
+        version_number=2,
+        title="Revised reader version",
+        summary=original.summary,
+        text_content=original.text_content,
+        release_at=original.release_at,
+        effective_at=original.effective_at,
+        expiry_at=original.expiry_at,
+        created_by=operational_data["originator"],
+    )
+    message.current_version_number = 2
+    message.save(update_fields=("current_version_number", "updated_at"))
+    assert ReadingPosition.objects.filter(version=original, page=3).exists()
+    assert not ReadingPosition.objects.filter(version=replacement).exists()
+
+    second = client.get(f"/operational/messages/{message.pk}/")
+    assert second.context["last_page"] == 1
+    assert second.context["version"].version_number == 2
+
+
+def test_cancellation_while_open_records_read_but_refuses_acknowledgement(
+    client: Client,
+    operational_data: dict[str, Any],
+) -> None:
+    message = create_operational_message(operational_data, "CANCEL-WHILE-OPEN")
+    reader = operational_data["reader"]
+    client.force_login(reader)
+    opened = client.get(f"/operational/messages/{message.pk}/")
+    session = opened.context["view_session"]
+    MessageViewSession.objects.filter(pk=session.pk).update(
+        opened_at=timezone.now() - timedelta(seconds=20)
+    )
+    Message.objects.filter(pk=message.pk).update(status=Message.Status.CANCELLED)
+
+    status = client.get(
+        f"/operational/messages/{message.pk}/status/",
+        {"view_session": session.pk},
+    )
+    assert status.status_code == 200
+    assert status.json()["status"] == Message.Status.CANCELLED
+    assert status.json()["can_clear"] is False
+
+    closed = client.post(
+        f"/operational/messages/{message.pk}/close/",
+        {
+            "view_session": session.pk,
+            "active_seconds": 12,
+            "action": "clear",
+        },
+        follow=True,
+    )
+    assert closed.status_code == 200
+    receipt = MessageReceipt.objects.get(user=reader, message=message)
+    assert receipt.first_read_at is not None
+    assert receipt.cleared_at is None
+    read_event = MessageAccessEvent.objects.get(
+        user=reader,
+        message=message,
+        event_type=MessageAccessEvent.EventType.READ,
+    )
+    assert read_event.duration_seconds == 12
+    assert read_event.metadata["lifecycle_changed_while_open"] is True
+    assert not MessageAccessEvent.objects.filter(
+        user=reader,
+        message=message,
+        event_type__in=(
+            MessageAccessEvent.EventType.ACKNOWLEDGED,
+            MessageAccessEvent.EventType.CLEARED,
+        ),
+    ).exists()
+
+
+def test_acknowledgement_and_clear_evidence_is_version_bound_and_append_only(
+    client: Client,
+    operational_data: dict[str, Any],
+) -> None:
+    message = create_operational_message(operational_data, "ACK-EVIDENCE")
+    reader = operational_data["reader"]
+    client.force_login(reader)
+    opened = client.get(f"/operational/messages/{message.pk}/")
+    session = opened.context["view_session"]
+    MessageViewSession.objects.filter(pk=session.pk).update(
+        opened_at=timezone.now() - timedelta(seconds=20)
+    )
+    response = client.post(
+        f"/operational/messages/{message.pk}/close/",
+        {
+            "view_session": session.pk,
+            "active_seconds": 10,
+            "action": "clear",
+        },
+    )
+    assert response.status_code == 302
+    events = list(
+        MessageAccessEvent.objects.filter(user=reader, message=message).order_by(
+            "occurred_at", "pk"
+        )
+    )
+    assert [event.event_type for event in events] == [
+        MessageAccessEvent.EventType.OPENED,
+        MessageAccessEvent.EventType.ACKNOWLEDGED,
+        MessageAccessEvent.EventType.CLEARED,
+    ]
+    assert all(event.metadata["version_number"] == 1 for event in events)
+    assert events[-1].duration_seconds == 10
+    assert MessageReceipt.objects.get(user=reader, message=message).cleared_at is not None
+    with pytest.raises(ValidationError, match="append-only"):
+        events[1].delete()
+
+
+def test_reader_keyboard_and_accessibility_contract(
+    client: Client,
+    operational_data: dict[str, Any],
+) -> None:
+    message = create_operational_message(operational_data, "ACCESSIBLE-READER")
+    client.force_login(operational_data["reader"])
+    response = client.get(f"/operational/messages/{message.pk}/")
+    html = response.content.decode()
+    assert 'data-help-dialog aria-labelledby="keyboard-help-heading"' in html
+    assert 'aria-keyshortcuts="?"' in html
+    assert 'aria-keyshortcuts="/"' not in html  # PDF-only control is correctly omitted.
+    assert 'role="alert" tabindex="-1" hidden data-lifecycle-alert' in html
+    assert 'aria-labelledby="reading-progress-heading"' in html
+    script = Path("firstbrief/core/static/js/consumption.js").read_text()
+    assert 'event.key === "?"' in script
+    assert 'event.key === "/"' in script
+    assert 'event.key === "["' in script
+    assert "helpReturnFocus" in script
 
 
 def test_login_preserves_previous_login_for_effective_dashboard(

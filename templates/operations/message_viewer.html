@@ -3,46 +3,167 @@
 {% block title %}{{ message.message_id }} · FirstBrief{% endblock %}
 {% block content %}
   {% timezone site_timezone %}
-    <article class="message-viewer" data-view-timer data-idle-seconds="{{ policy.idle_timeout_seconds }}">
+    <article
+      class="message-viewer enhanced-reader"
+      data-view-timer
+      data-reader
+      data-idle-seconds="{{ policy.idle_timeout_seconds }}"
+      data-message-id="{{ message.pk }}"
+      data-version-number="{{ version.version_number }}"
+      data-last-page="{{ last_page }}"
+      data-position-url="{% url 'operations:reading-position' message.pk %}"
+      data-status-url="{% url 'operations:viewer-status' message.pk %}">
+
+      <div class="lifecycle-alert" role="alert" tabindex="-1" hidden data-lifecycle-alert>
+        <strong data-lifecycle-title>Message status changed</strong>
+        <span data-lifecycle-detail>Acknowledgement has been disabled. Your reading time can still be recorded safely.</span>
+      </div>
+
+      {% if message.status == "cancelled" %}
+        <div class="lifecycle-banner lifecycle-danger" role="alert"><strong>Cancelled.</strong> Do not rely on this message.</div>
+      {% elif message.status == "withdrawn" %}
+        <div class="lifecycle-banner lifecycle-danger" role="alert"><strong>Withdrawn.</strong> This message is no longer operational.</div>
+      {% endif %}
+      {% if supersedes %}
+        <div class="lifecycle-banner"><strong>Supersedes:</strong> <a href="{% url 'operations:viewer' supersedes.pk %}">{{ supersedes.message_id }}</a></div>
+      {% endif %}
+      {% if superseded_by %}
+        <div class="lifecycle-banner lifecycle-warning"><strong>Superseded by:</strong> <a href="{% url 'operations:viewer' superseded_by.pk %}">{{ superseded_by.message_id }}</a></div>
+      {% endif %}
+
       <header class="viewer-header">
         <div>
           <p class="eyebrow">{{ message.get_kind_display }}</p>
           <h1 class="page-title">{{ version.title }}</h1>
-          <p class="message-reference">{{ message.message_id }} · {{ message.message_type.name }}{% if message.subtype %} · {{ message.subtype.name }}{% endif %}</p>
+          <p class="message-reference">{{ message.message_id }} · Version {{ version.version_number }} · {{ message.message_type.name }}{% if message.subtype %} · {{ message.subtype.name }}{% endif %}</p>
         </div>
         <div class="viewer-state">
           {% if mandatory %}<span class="status-pill status-mandatory"><span aria-hidden="true">!</span> Mandatory</span>{% endif %}
           <span class="status-pill">{{ message.get_status_display }}</span>
+          <button type="button" class="button-secondary compact-button" data-help-open aria-keyshortcuts="?">Keyboard help</button>
         </div>
       </header>
+
+      <nav class="mandatory-navigation" aria-label="Mandatory message sequence">
+        {% if previous_mandatory %}
+          <a href="{% url 'operations:viewer' previous_mandatory.pk %}" rel="prev" aria-keyshortcuts="[">← Previous mandatory<br><small>{{ previous_mandatory.message_id }}</small></a>
+        {% else %}<span></span>{% endif %}
+        {% if next_mandatory %}
+          <a href="{% url 'operations:viewer' next_mandatory.pk %}" rel="next" aria-keyshortcuts="]">Next mandatory →<br><small>{{ next_mandatory.message_id }}</small></a>
+        {% endif %}
+      </nav>
 
       <dl class="viewer-metadata">
         <div><dt>Originator</dt><dd>{{ message.originator.get_full_name|default:message.originator.username }}</dd></div>
         <div><dt>Released</dt><dd>{{ version.release_at|date:"j M Y, H:i" }}</dd></div>
         <div><dt>Effective</dt><dd>{{ version.effective_at|date:"j M Y, H:i"|default:"On release" }}</dd></div>
         <div><dt>Expires</dt><dd>{{ version.expiry_at|date:"j M Y, H:i" }}</dd></div>
-        {% if receipt %}<div><dt>Recorded viewing time</dt><dd>{{ receipt.cumulative_view_seconds }} seconds</dd></div>{% endif %}
+        {% if receipt %}<div><dt>Recorded active reading</dt><dd>{{ receipt.cumulative_view_seconds }} seconds</dd></div>{% endif %}
       </dl>
+
+      {% if version_changes %}
+        <details class="version-summary">
+          <summary>What changed in version {{ version.version_number }}</summary>
+          <ul>{% for change in version_changes %}<li>{{ change }}</li>{% endfor %}</ul>
+        </details>
+      {% endif %}
 
       {% if version.summary %}<p class="message-summary">{{ version.summary }}</p>{% endif %}
 
+      <section class="reading-status" aria-labelledby="reading-progress-heading">
+        <div>
+          <h2 id="reading-progress-heading">Reading progress</h2>
+          <p data-reading-status>
+            {% if pdf_navigation and pdf_navigation.total_pages %}
+              Page {{ last_page }} of {{ pdf_navigation.total_pages }}
+            {% else %}
+              Message opened. Reading is recorded only while this tab is visible and active.
+            {% endif %}
+          </p>
+        </div>
+        {% if pdf_navigation and pdf_navigation.total_pages %}
+          <progress value="{{ last_page }}" max="{{ pdf_navigation.total_pages }}" data-reading-progress>
+            Page {{ last_page }} of {{ pdf_navigation.total_pages }}
+          </progress>
+        {% endif %}
+      </section>
+
       <section class="message-content" aria-labelledby="content-heading">
-        <h2 id="content-heading">Message content</h2>
+        <h2 id="content-heading" tabindex="-1">Message content</h2>
         {% if message.kind == "botd" %}
           <div class="text-content">{{ version.text_content|linebreaks }}</div>
         {% elif display_asset %}
-          <iframe
-            class="pdf-viewer"
-            title="Display PDF for {{ message.message_id }}"
-            src="{% url 'operations:file' message.pk display_asset.pk %}">
-          </iframe>
-          <p><a href="{% url 'operations:file' message.pk display_asset.pk %}" target="_blank" rel="noopener">Open the secure PDF in a new tab</a></p>
+          <div class="pdf-reader-layout">
+            <aside class="pdf-tools" aria-label="PDF navigation and search">
+              {% if pdf_navigation.bookmarks %}
+                <section aria-labelledby="toc-heading">
+                  <h3 id="toc-heading">Contents</h3>
+                  <ol class="toc-list">
+                    {% for bookmark in pdf_navigation.bookmarks %}
+                      <li style="--toc-level: {{ bookmark.level }}"><button type="button" data-page="{{ bookmark.page }}">{{ bookmark.title }} <span>p. {{ bookmark.page }}</span></button></li>
+                    {% endfor %}
+                  </ol>
+                </section>
+              {% endif %}
+
+              <section aria-labelledby="pdf-search-heading">
+                <h3 id="pdf-search-heading">Search this PDF</h3>
+                <label for="pdf-search">Search text</label>
+                <input id="pdf-search" type="search" data-pdf-search aria-keyshortcuts="/" autocomplete="off">
+                <p class="help">{{ pdf_navigation.message }}</p>
+                <p role="status" aria-live="polite" data-search-status></p>
+                <ol class="pdf-search-results" data-search-results></ol>
+              </section>
+
+              {% if pdf_navigation.pages %}
+                <section aria-labelledby="thumbnail-heading">
+                  <h3 id="thumbnail-heading">Page thumbnails</h3>
+                  <ol class="page-thumbnails">
+                    {% for page in pdf_navigation.pages %}
+                      <li>
+                        <button type="button" data-page="{{ page.page }}" aria-label="Open page {{ page.page }}">
+                          <span class="page-thumbnail" aria-hidden="true"><strong>{{ page.page }}</strong><small>{{ page.excerpt|truncatechars:80 }}</small></span>
+                          <span>Page {{ page.page }}</span>
+                        </button>
+                      </li>
+                    {% endfor %}
+                  </ol>
+                </section>
+              {% endif %}
+            </aside>
+
+            <div class="pdf-stage">
+              <iframe
+                class="pdf-viewer"
+                title="Protected display PDF for {{ message.message_id }}, version {{ version.version_number }}"
+                src="{{ secure_pdf_url }}#page={{ last_page }}"
+                data-pdf-frame>
+              </iframe>
+              <p><a href="{{ secure_pdf_url }}#page={{ last_page }}" target="_blank" rel="noopener">Open the protected PDF in a new tab</a></p>
+            </div>
+          </div>
+          {{ pdf_pages_json|json_script:"protected-pdf-pages" }}
+          <form hidden data-position-form>
+            {% csrf_token %}
+            <input name="view_session" value="{{ view_session.pk }}">
+          </form>
         {% else %}
           <p class="warning">The protected display PDF is not available.</p>
         {% endif %}
       </section>
 
-      <nav class="viewer-actions" aria-label="Message actions">
+      {% if related_items %}
+        <aside class="related-messages" aria-labelledby="related-heading">
+          <h2 id="related-heading">Related messages</h2>
+          <ul>
+            {% for related in related_items %}
+              <li><a href="{% url 'operations:viewer' related.message.pk %}">{{ related.message.message_id }} — {{ related.version.title }}</a></li>
+            {% endfor %}
+          </ul>
+        </aside>
+      {% endif %}
+
+      <nav class="viewer-actions" aria-label="Supporting message actions">
         <form method="post" action="{% url 'operations:print' message.pk %}" target="_blank">
           {% csrf_token %}<button type="submit" class="button-secondary">Print</button>
         </form>
@@ -54,23 +175,39 @@
 
       <section class="close-panel" aria-labelledby="close-heading">
         <h2 id="close-heading">Finish reading</h2>
-        <p>
-          Viewing time is recorded as supporting information. For mandatory messages,
-          <strong>Read &amp; Clear is the compliance acknowledgement</strong>.
-        </p>
+        <ol class="evidence-steps">
+          <li><strong>Opened</strong> — recorded when this protected reader loaded.</li>
+          <li><strong>Read</strong> — records bounded foreground, non-idle time when you finish.</li>
+          {% if mandatory %}
+            <li><strong>Acknowledge</strong> — your explicit compliance decision.</li>
+            <li><strong>Clear</strong> — moves the acknowledged message to Other Messages.</li>
+          {% endif %}
+        </ol>
         <form method="post" action="{% url 'operations:close' message.pk %}" data-close-form>
           {% csrf_token %}
           {{ close_form.view_session }}
           {{ close_form.active_seconds }}
           {% if mandatory %}
             <fieldset>
-              <legend>Choose what happens when you close this message</legend>
+              <legend>Choose how to finish</legend>
               {{ close_form.action }}
             </fieldset>
           {% endif %}
-          <button type="submit">{% if mandatory %}Confirm and close{% else %}Close message{% endif %}</button>
+          <button type="submit">{% if mandatory %}Confirm reading decision{% else %}Finish reading{% endif %}</button>
         </form>
       </section>
     </article>
+
+    <dialog class="keyboard-help" data-help-dialog aria-labelledby="keyboard-help-heading">
+      <h2 id="keyboard-help-heading">Reader keyboard shortcuts</h2>
+      <dl>
+        <div><dt><kbd>?</kbd></dt><dd>Open this help</dd></div>
+        <div><dt><kbd>/</kbd></dt><dd>Focus PDF search</dd></div>
+        <div><dt><kbd>J</kbd> / <kbd>K</kbd></dt><dd>Next / previous PDF page</dd></div>
+        <div><dt><kbd>[</kbd> / <kbd>]</kbd></dt><dd>Previous / next mandatory message</dd></div>
+        <div><dt><kbd>Esc</kbd></dt><dd>Close this help</dd></div>
+      </dl>
+      <button type="button" data-help-close>Close keyboard help</button>
+    </dialog>
   {% endtimezone %}
 {% endblock %}

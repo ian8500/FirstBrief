@@ -12,8 +12,9 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.files.storage import default_storage
-from django.http import FileResponse, Http404, HttpRequest, HttpResponse
+from django.http import FileResponse, Http404, HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
+from django.urls import reverse
 from django.views.decorators.clickjacking import xframe_options_sameorigin
 from django.views.decorators.http import require_GET, require_http_methods, require_POST
 
@@ -22,22 +23,31 @@ from firstbrief.identity.services import MANAGE_CONFIGURATION, has_capability
 from firstbrief.messaging.models import FileAsset
 from firstbrief.operations.forms import (
     CloseMessageForm,
+    DashboardPreferenceForm,
     FeedbackForm,
     OperationalPolicyForm,
     OtherMessageCloseForm,
 )
-from firstbrief.operations.models import MessageReceipt, OperationalPolicy
+from firstbrief.operations.models import DashboardPreference, MessageReceipt, OperationalPolicy
+from firstbrief.operations.pdf import pdf_navigation
 from firstbrief.operations.services import (
     accessible_message,
+    accessible_messages,
+    active_session_message,
+    adjacent_mandatory_messages,
     close_message_view,
     dashboard_data,
     email_message_to_self,
     is_mandatory,
     message_rows,
     open_message_view,
+    operational_messages,
     record_print,
+    related_messages,
+    save_reading_position,
     submit_feedback,
     update_policy,
+    version_change_summary,
 )
 
 
@@ -120,6 +130,7 @@ def message_list(request: HttpRequest, list_kind: str) -> HttpResponse:
 def message_viewer(request: HttpRequest, message_pk: uuid.UUID) -> HttpResponse:
     actor = _actor(request)
     message = accessible_message(actor, message_pk)
+    version = message.current_version
     session_key = _session_key(request)
     view_session = open_message_view(
         actor=actor,
@@ -127,7 +138,7 @@ def message_viewer(request: HttpRequest, message_pk: uuid.UUID) -> HttpResponse:
         browser_session_key=session_key,
     )
     accessed = request.session.get("accessed_messages", [])
-    label = f"{message.message_id} — {message.current_version.title}"
+    label = f"{message.message_id} — {version.title}"
     if label not in accessed:
         accessed.append(label)
         request.session["accessed_messages"] = accessed
@@ -138,54 +149,154 @@ def message_viewer(request: HttpRequest, message_pk: uuid.UUID) -> HttpResponse:
         else OtherMessageCloseForm(initial={"view_session": view_session.pk, "active_seconds": 0})
     )
     receipt = MessageReceipt.objects.filter(user=actor, message=message).first()
-    display_asset = message.current_version.files.filter(
+    display_asset = version.files.filter(
         role=FileAsset.Role.DISPLAY,
         scan_status=FileAsset.ScanStatus.CLEAN,
     ).first()
-    return render(
+    navigation = pdf_navigation(display_asset) if display_asset else None
+    position = (
+        actor.reading_positions.filter(message=message, version=version).first()
+        if display_asset
+        else None
+    )
+    previous_mandatory, next_mandatory = adjacent_mandatory_messages(actor, message)
+    operational_scope = operational_messages(actor)
+    supersedes = (
+        operational_scope.filter(pk=message.supersedes_id).first()
+        if message.supersedes_id
+        else None
+    )
+    superseded_by_pk = getattr(message, "superseded_by", None)
+    superseded_by = (
+        operational_scope.filter(pk=superseded_by_pk.pk).first()
+        if superseded_by_pk
+        else None
+    )
+    related = related_messages(actor, message)
+    related_items = [
+        {
+            "message": related_message,
+            "version": next(
+                version
+                for version in related_message.versions.all()
+                if version.version_number == related_message.current_version_number
+            ),
+        }
+        for related_message in related
+    ]
+    response = render(
         request,
         "operations/message_viewer.html",
         {
             "message": message,
-            "version": message.current_version,
+            "version": version,
             "mandatory": mandatory,
             "close_form": close_form,
             "view_session": view_session,
             "receipt": receipt,
             "display_asset": display_asset,
+            "pdf_navigation": navigation,
+            "pdf_pages_json": (
+                [
+                    {
+                        "page": page.page,
+                        "label": page.label,
+                        "excerpt": page.excerpt,
+                        "text": page.text,
+                    }
+                    for page in navigation.pages
+                ]
+                if navigation
+                else []
+            ),
+            "secure_pdf_url": (
+                reverse(
+                    "operations:file",
+                    kwargs={"message_pk": message.pk, "asset_pk": display_asset.pk},
+                )
+                if display_asset
+                else ""
+            ),
+            "last_page": position.page if position else 1,
+            "previous_mandatory": previous_mandatory,
+            "next_mandatory": next_mandatory,
+            "related_items": related_items,
+            "supersedes": supersedes,
+            "superseded_by": superseded_by,
+            "version_changes": version_change_summary(message),
             "policy": OperationalPolicy.load(),
             "site_timezone": _site_timezone(),
         },
     )
+    response["Cache-Control"] = "private, no-store"
+    return response
 
 
 @login_required
 @require_POST
 def close_message(request: HttpRequest, message_pk: uuid.UUID) -> HttpResponse:
     actor = _actor(request)
-    message = accessible_message(actor, message_pk)
-    mandatory = is_mandatory(message)
+    raw_session = request.POST.get("view_session", "")
+    try:
+        session_id = uuid.UUID(raw_session)
+    except (TypeError, ValueError):
+        raise PermissionDenied from None
+    message, view_session = active_session_message(
+        actor=actor,
+        message_pk=message_pk,
+        view_session_id=session_id,
+    )
+    mandatory = view_session.mandatory_at_open
     form: CloseMessageForm | OtherMessageCloseForm
     form = CloseMessageForm(request.POST) if mandatory else OtherMessageCloseForm(request.POST)
     if not form.is_valid():
         messages.error(request, "The message could not be closed. Please try again.")
         return redirect("operations:viewer", message_pk=message.pk)
-    clear = mandatory and form.cleaned_data.get("action") == CloseMessageForm.Action.CLEAR
+    clear_requested = mandatory and form.cleaned_data.get("action") == CloseMessageForm.Action.CLEAR
+    current_access = accessible_messages(actor).filter(pk=message.pk).first()
+    session_version_number = view_session.version.version_number if view_session.version else 0
+    lifecycle_current = bool(
+        current_access
+        and current_access.status
+        in (
+            current_access.Status.EFFECTIVE,
+            current_access.Status.RELEASED_PENDING_EFFECTIVE,
+        )
+        and current_access.current_version_number == session_version_number
+    )
+    can_clear_now = bool(
+        lifecycle_current
+        and current_access
+        and is_mandatory(current_access)
+        and current_access.status == current_access.Status.EFFECTIVE
+    )
+    acknowledgement_blocked = clear_requested and not can_clear_now
+    lifecycle_changed = not lifecycle_current
+    clear = clear_requested and can_clear_now
+    message_for_close = current_access if current_access is not None else message
     try:
         close_message_view(
             actor=actor,
-            message=message,
+            message=message_for_close,
             view_session_id=form.cleaned_data["view_session"],
             active_seconds=form.cleaned_data["active_seconds"],
             clear=clear,
+            lifecycle_changed=lifecycle_changed or acknowledgement_blocked,
         )
     except ValidationError as exc:
         messages.error(request, "; ".join(exc.messages))
         return redirect("operations:viewer", message_pk=message.pk)
-    messages.success(
-        request,
-        "Message read and cleared." if clear else "Message marked as read.",
-    )
+    if lifecycle_changed or acknowledgement_blocked:
+        messages.warning(
+            request,
+            "Reading time was recorded, but acknowledgement was not accepted because "
+            "the message changed, expired or was cancelled while open.",
+        )
+    else:
+        messages.success(
+            request,
+            "Message acknowledged and cleared." if clear else "Message marked as read.",
+        )
     return redirect("operations:other" if clear or not mandatory else "operations:mandatory")
 
 
@@ -292,15 +403,123 @@ def protected_file(
 
 
 @login_required
+@require_POST
+def reading_position(request: HttpRequest, message_pk: uuid.UUID) -> JsonResponse:
+    actor = _actor(request)
+    try:
+        session_id = uuid.UUID(request.POST.get("view_session", ""))
+        page = int(request.POST.get("page", "1"))
+        total_pages = int(request.POST.get("total_pages", "1"))
+    except (TypeError, ValueError):
+        return JsonResponse({"error": "Invalid reading position."}, status=400)
+    message, _ = active_session_message(
+        actor=actor,
+        message_pk=message_pk,
+        view_session_id=session_id,
+    )
+    try:
+        position = save_reading_position(
+            actor=actor,
+            message=message,
+            view_session_id=session_id,
+            page=page,
+            total_pages=total_pages,
+        )
+    except ValidationError as exc:
+        return JsonResponse({"error": "; ".join(exc.messages)}, status=400)
+    response = JsonResponse(
+        {
+            "page": position.page,
+            "total_pages": position.total_pages,
+            "progress": round(position.page / position.total_pages * 100),
+        }
+    )
+    response["Cache-Control"] = "private, no-store"
+    return response
+
+
+@login_required
+@require_GET
+def viewer_status(request: HttpRequest, message_pk: uuid.UUID) -> JsonResponse:
+    actor = _actor(request)
+    try:
+        session_id = uuid.UUID(request.GET.get("view_session", ""))
+    except (TypeError, ValueError):
+        raise PermissionDenied from None
+    message, session = active_session_message(
+        actor=actor,
+        message_pk=message_pk,
+        view_session_id=session_id,
+    )
+    current_access = accessible_messages(actor).filter(pk=message.pk).first()
+    version_changed = bool(
+        session.version_id
+        and session.version
+        and session.version.version_number != message.current_version_number
+    )
+    lifecycle_changed = bool(
+        current_access is None
+        or message.status
+        not in (
+            message.Status.EFFECTIVE,
+            message.Status.RELEASED_PENDING_EFFECTIVE,
+        )
+        or version_changed
+    )
+    can_clear = bool(
+        current_access
+        and session.mandatory_at_open
+        and is_mandatory(current_access)
+        and current_access.status == current_access.Status.EFFECTIVE
+        and session.version_id == current_access.current_version.pk
+    )
+    response = JsonResponse(
+        {
+            "status": message.status,
+            "status_label": message.get_status_display(),
+            "can_clear": can_clear,
+            "mandatory_at_open": session.mandatory_at_open,
+            "lifecycle_changed": lifecycle_changed,
+            "version_changed": version_changed,
+        }
+    )
+    response["Cache-Control"] = "private, no-store"
+    return response
+
+
+@login_required
 @require_http_methods(["GET", "POST"])
 def settings_view(request: HttpRequest) -> HttpResponse:
     actor = _actor(request)
-    if not has_capability(actor, MANAGE_CONFIGURATION):
-        raise PermissionDenied
+    preference = DashboardPreference.load_for(actor)
     policy = OperationalPolicy.load()
-    form = OperationalPolicyForm(request.POST or None, instance=policy)
-    if request.method == "POST" and form.is_valid():
-        update_policy(actor=actor, policy=form.save(commit=False))
-        messages.success(request, "Operational dashboard policy updated.")
-        return redirect("operations:settings")
-    return render(request, "operations/settings.html", {"form": form})
+    can_manage_policy = has_capability(actor, MANAGE_CONFIGURATION)
+    preference_form = DashboardPreferenceForm(
+        request.POST if request.method == "POST" and "save_preferences" in request.POST else None,
+        instance=preference,
+    )
+    policy_form = OperationalPolicyForm(
+        request.POST if request.method == "POST" and "save_policy" in request.POST else None,
+        instance=policy,
+    )
+    if request.method == "POST" and "save_preferences" in request.POST:
+        if preference_form.is_valid():
+            preference_form.save()
+            messages.success(request, "Your dashboard preferences were saved.")
+            return redirect("operations:settings")
+    elif request.method == "POST":
+        if not can_manage_policy:
+            raise PermissionDenied
+        if policy_form.is_valid():
+            update_policy(actor=actor, policy=policy_form.save(commit=False))
+            messages.success(request, "Operational dashboard policy updated.")
+            return redirect("operations:settings")
+    return render(
+        request,
+        "operations/settings.html",
+        {
+            "preference_form": preference_form,
+            "policy_form": policy_form,
+            "can_manage_policy": can_manage_policy,
+        },
+    )
