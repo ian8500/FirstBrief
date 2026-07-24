@@ -19,6 +19,22 @@ from firstbrief.messaging.models import FileAsset, MessagePolicy, MessageVersion
 from firstbrief.messaging.scanning import MalwareScanner
 
 
+def _extract_searchable_text(payload: bytes) -> str:
+    """Extract bounded display text without exposing or persisting the PDF itself."""
+    reader = PdfReader(io.BytesIO(payload), strict=True)
+    parts: list[str] = []
+    remaining = 200_000
+    for page in reader.pages:
+        if remaining <= 0:
+            break
+        text = (page.extract_text() or "").strip()
+        if text:
+            excerpt = text[:remaining]
+            parts.append(excerpt)
+            remaining -= len(excerpt)
+    return "\n".join(parts)
+
+
 def _read_validated_pdf(upload: UploadedFile, message_id: str) -> bytes:
     policy = MessagePolicy.load()
     upload_size = upload.size
@@ -61,7 +77,10 @@ def store_scanned_pdf(
         scan = scanner.scan(path)
         if not scan.clean:
             raise ValidationError(f"PDF was not accepted: {scan.detail}")
-        return FileAsset.objects.create(
+        searchable_text = (
+            _extract_searchable_text(payload) if role == FileAsset.Role.DISPLAY else ""
+        )
+        asset = FileAsset.objects.create(
             version=version,
             role=role,
             original_filename=Path(upload_name).name,
@@ -73,6 +92,10 @@ def store_scanned_pdf(
             scan_detail=scan.detail,
             uploaded_by=actor,
         )
+        if role == FileAsset.Role.DISPLAY:
+            version.searchable_content = searchable_text
+            version.save(update_fields=("searchable_content",))
+        return asset
     except Exception:
         default_storage.delete(saved_key)
         raise

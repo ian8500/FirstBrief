@@ -27,6 +27,7 @@ from firstbrief.identity.services import (
     MANAGE_ROLES,
     MANAGE_USERS,
     SEE_ALL_PMG,
+    VIEW_AUDIT_HISTORY,
 )
 from firstbrief.notifications.models import NotificationPolicy
 from firstbrief.operations.models import OperationalPolicy
@@ -93,6 +94,7 @@ class Command(BaseCommand):
                 (APPROVE_MESSAGES, "Approve messages"),
                 (MANAGE_MESSAGES, "Manage messages"),
                 (SEE_ALL_PMG, "See all primary message groups"),
+                (VIEW_AUDIT_HISTORY, "View message audit history"),
             )
         ]
         role, _ = Role.objects.get_or_create(name="System administrator")

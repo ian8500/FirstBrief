@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}{{ message.message_id }} · Search · FirstBrief{% endblock %}
+{% block content %}
+  <p><a href="{% url 'retrieval:search' %}">← Search results</a></p>
+  <article class="message-viewer">
+    <header class="viewer-header">
+      <div>
+        <p class="eyebrow">{{ message.get_kind_display }}</p>
+        <h1>{{ version.title }}</h1>
+        <p>{{ message.message_id }} · {{ message.get_status_display }}</p>
+      </div>
+    </header>
+    <dl class="message-metadata">
+      <dt>Originator</dt><dd>{{ message.originator.get_full_name|default:message.originator.username }}</dd>
+      <dt>Release</dt><dd>{{ version.release_at }}</dd>
+      <dt>Effective</dt><dd>{{ version.effective_at|default:"Not used" }}</dd>
+      <dt>Expiry</dt><dd>{{ version.expiry_at }}</dd>
+      <dt>Subtype</dt><dd>{{ message.subtype|default:"Not used" }}</dd>
+    </dl>
+    <h2>Summary</h2>
+    <p>{{ version.summary|default:"No summary." }}</p>
+    <section class="viewer-frame" aria-labelledby="search-content-heading">
+      <h2 id="search-content-heading">Message content</h2>
+      {% if display_asset %}
+        <iframe
+          title="Protected display PDF for {{ message.message_id }}"
+          src="{% url 'retrieval:file' message.pk display_asset.pk %}"
+          loading="lazy">
+        </iframe>
+      {% elif version.text_content %}
+        <div class="message-text">{{ version.text_content|linebreaks }}</div>
+      {% else %}
+        <p>The protected display PDF is not available.</p>
+      {% endif %}
+    </section>
+  </article>
+{% endblock %}

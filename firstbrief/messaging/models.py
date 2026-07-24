@@ -114,9 +114,13 @@ class Message(models.Model):
 class MessageVersion(models.Model):
     message = models.ForeignKey(Message, on_delete=models.CASCADE, related_name="versions")
     version_number = models.PositiveIntegerField()
-    title = models.CharField(max_length=240)
+    title = models.CharField(max_length=240, db_index=True)
     summary = models.TextField(blank=True)
     text_content = models.TextField(blank=True)
+    searchable_content = models.TextField(
+        blank=True,
+        help_text="Text extracted from the protected display content for scoped search.",
+    )
     release_at = models.DateTimeField()
     effective_at = models.DateTimeField(null=True, blank=True)
     expiry_at = models.DateTimeField()
@@ -129,6 +133,11 @@ class MessageVersion(models.Model):
 
     class Meta:
         ordering = ("message", "version_number")
+        indexes: ClassVar[list[models.Index]] = [
+            models.Index(fields=("release_at", "message"), name="version_release_message"),
+            models.Index(fields=("effective_at", "message"), name="version_effective_message"),
+            models.Index(fields=("expiry_at", "message"), name="version_expiry_message"),
+        ]
         constraints: ClassVar[list[models.BaseConstraint]] = [
             models.UniqueConstraint(
                 fields=("message", "version_number"), name="unique_message_version"

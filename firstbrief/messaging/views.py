@@ -8,12 +8,14 @@ from typing import Any
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied, ValidationError
+from django.core.paginator import Paginator
 from django.db import transaction
 from django.db.models import QuerySet
 from django.http import Http404, HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_http_methods
 
+from firstbrief.assurance.models import AuditEvent
 from firstbrief.configuration.models import MessageGroup, MessageSubType
 from firstbrief.identity.models import User
 from firstbrief.identity.services import (
@@ -21,6 +23,7 @@ from firstbrief.identity.services import (
     CREATE_MESSAGES,
     MANAGE_MESSAGES,
     SEE_ALL_PMG,
+    VIEW_AUDIT_HISTORY,
     has_capability,
 )
 from firstbrief.messaging.files import attach_message_pdfs
@@ -44,6 +47,7 @@ from firstbrief.messaging.services import (
     unapprove_message,
     withdraw_message,
 )
+from firstbrief.retrieval.services import maintenance_rows, permitted_maintenance_actions
 
 
 def actor_for(request: HttpRequest) -> User:
@@ -84,6 +88,16 @@ def message_list(request: HttpRequest) -> HttpResponse:
         queryset = queryset.filter(audience_rights__message_group_id=int(group_id))
     if subtype_id.isdigit():
         queryset = queryset.filter(subtype_id=int(subtype_id))
+    status = request.GET.get("status", "")
+    if status in Message.Status.values:
+        queryset = queryset.filter(status=status)
+    sort = request.GET.get("sort", "message")
+    sort_fields = {
+        "message": "message_id",
+        "status": "status",
+        "updated": "updated_at",
+    }
+    queryset = queryset.order_by(sort_fields.get(sort, "message_id"), "message_id", "pk")
     can_see_all = actor.is_superuser or has_capability(actor, SEE_ALL_PMG)
     groups = MessageGroup.objects.filter(is_active=True)
     subtypes = MessageSubType.objects.filter(is_active=True)
@@ -95,15 +109,23 @@ def message_list(request: HttpRequest) -> HttpResponse:
         else:
             groups = groups.filter(primary_group__site_id=site_id)
             subtypes = subtypes.filter(primary_group__site_id=site_id)
+    page = Paginator(queryset, 25).get_page(request.GET.get("page"))
+    query = request.GET.copy()
+    query.pop("page", None)
     return render(
         request,
         "messaging/list.html",
         {
-            "message_list": queryset,
+            "page": page,
+            "maintenance_rows": maintenance_rows(page.object_list, actor),
             "groups": groups,
             "subtypes": subtypes,
             "group_id": group_id,
             "subtype_id": subtype_id,
+            "status": status,
+            "statuses": Message.Status.choices,
+            "sort": sort,
+            "querystring": query.urlencode(),
         },
     )
 
@@ -155,6 +177,21 @@ def message_detail(request: HttpRequest, message_pk: uuid.UUID) -> HttpResponse:
     actor = actor_for(request)
     require_any_message_permission(actor)
     message = get_object_or_404(scoped_messages(actor), pk=message_pk)
+    permitted_actions = permitted_maintenance_actions(actor, message)
+    can_view_audit = has_capability(actor, VIEW_AUDIT_HISTORY)
+    audit_events = (
+        AuditEvent.objects.filter(object_type="Message", object_id=str(message.pk)).order_by(
+            "occurred_at", "pk"
+        )
+        if can_view_audit
+        else AuditEvent.objects.none()
+    )
+    labels = {
+        "unapprove": "Unapprove",
+        "withdraw": "Withdraw",
+        "cancel": "Delete / cancel",
+        "restore": "Restore",
+    }
     return render(
         request,
         "messaging/detail.html",
@@ -163,18 +200,14 @@ def message_detail(request: HttpRequest, message_pk: uuid.UUID) -> HttpResponse:
             "version": message.current_version,
             "approve_key": uuid.uuid4(),
             "action_buttons": [
-                {"command": command, "label": label, "key": uuid.uuid4()}
-                for command, label in (
-                    ("unapprove", "Unapprove"),
-                    ("release", "Release"),
-                    ("effective", "Make effective"),
-                    ("expire", "Expire"),
-                    ("archive", "Archive"),
-                    ("withdraw", "Withdraw"),
-                    ("cancel", "Cancel"),
-                    ("restore", "Restore"),
-                )
+                {"command": command, "label": labels[command], "key": uuid.uuid4()}
+                for command in permitted_actions
+                if command in labels
             ],
+            "can_edit": "edit" in permitted_actions,
+            "can_approve": "approve" in permitted_actions,
+            "can_view_audit": can_view_audit,
+            "audit_events": audit_events,
         },
     )
 

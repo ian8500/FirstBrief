@@ -10,7 +10,7 @@ Detailed design decisions and phase evidence remain in `docs/`.
 
 ## Current delivery status
 
-Prompts 0–6 are implemented and verified.
+Prompts 0–7 are implemented and verified.
 
 | Phase | Delivered capability |
 | --- | --- |
@@ -21,6 +21,7 @@ Prompts 0–6 are implemented and verified.
 | Prompt 4 | Message authoring, immutable versions, approval, lifecycle commands, PDFs and audience rights |
 | Prompt 5 | Transactional outbox, scheduled lifecycle transitions, notifications, retries and operational recovery |
 | Prompt 6 | Operational dashboard, reader lists, secure viewer, acknowledgement and access evidence |
+| Prompt 7 | Scoped BOTD/Instruction search, autosuggest, exports and status-aware maintenance |
 
 The controlling requirements contain 121 inventoried source requirements.
 Seventeen proposed gap-closing requirements are tracked separately and are not
@@ -164,6 +165,27 @@ Configuration managers can use `/operational/settings/` to set the forthcoming
 window, forthcoming colour and idle timeout. The colour setting is always
 supplemented by text and an icon.
 
+### Search for messages and users
+
+Every signed-in user can open **Search** or `/search/`. Search always applies
+role, message-type, site, group and Prohibited-right rules before applying the
+criteria entered on screen. The result count, pagination, suggestions, protected
+viewer and CSV export all use the same scoped query service.
+
+Search supports BOTD/Instruction type, Message ID, title, summary, display
+content, group, subtype, read state and release/effective/expiry ranges.
+Archived and not-yet-effective messages are opt-in. Leaving all criteria empty
+returns every published message the account is permitted to see.
+
+Results are stably sorted and shown 25 at a time. **Export these results**
+downloads up to 5,000 rows from the same permitted result set; the private
+response and row count are audited.
+
+Message ID and user suggestions begin after three characters. User results use
+`First name, Surname (User ID)` and remain site-scoped unless **See all primary
+message groups** is granted. Results open in a protected viewer that also
+supports authorised archived content; PDFs never receive public URLs.
+
 ### Configure the message taxonomy
 
 Authorised configuration managers can open `/configuration/`.
@@ -219,6 +241,22 @@ Draft -> Approved -> Released -> Effective -> Expired -> Archived
 Not every message uses every state. Invalid transitions are rejected by the
 domain service, and repeated execution of the same command is idempotent.
 
+### Maintain the data-authority work queue
+
+Authorised preparers, approvers and managers use `/messages/manage/`. The grid
+filters by message group, subtype and status, sorts deterministically and shows
+25 records per page.
+
+The **Permitted actions** column combines account capabilities with the current
+message status. Drafts can be approved only by an approver; approved messages can
+be unapproved only before release; archived messages can be restored only by a
+message manager. The detail screen renders only permitted controls, and domain
+services repeat every permission and state check on submission.
+
+Accounts with **View message audit history** see immutable chronological message
+events. **See all primary message groups** enables cross-site maintenance;
+otherwise the grid and its filters stay within the account’s site.
+
 ### Notification operations
 
 Users with **Manage messages** can open `/notifications/`.
@@ -273,6 +311,8 @@ The main bounded components are:
   notification policy, delivery retries and recovery operations.
 - `firstbrief.operations` — scoped dashboard queries, reading receipts,
   append-only access events, viewing sessions and acknowledgement workflows.
+- `firstbrief.retrieval` — scope-first search, autosuggest, pagination,
+  protected search viewing and bounded export.
 - `firstbrief.core` — application shell, error handling, request correlation,
   health checks and shared audit services.
 
@@ -348,6 +388,15 @@ python manage.py seed_development
 The seed command is deliberately blocked outside the development environment.
 Production data must be created through an approved administrative process.
 
+Search uses the immutable current `MessageVersion`. Message ID and title plus
+release, effective and expiry access paths are indexed. Display-PDF text is
+extracted only after structural validation and malware scanning, capped at
+200,000 characters and stored on the protected version. Existing BOTD text is
+backfilled by migration; source PDFs remain in opaque storage.
+
+Ordering is allow-listed and ends with Message ID/primary-key tie-breakers.
+Autosuggest is capped at 12 records, search pages at 25 and CSV at 5,000.
+
 ### Quality and security checks
 
 Run the complete local gate before committing:
@@ -396,6 +445,13 @@ See `docs/deployment.md` for the operational detail.
 - **Expected message is missing:** confirm the user has an active role granting
   its message type, matching site/group membership, no Prohibited audience right,
   and that a forthcoming message is inside the configured window.
+- **Search result or suggestion is missing:** confirm role, site, message-type
+  and group scope, then enable archived or not-yet-effective content if needed.
+  Prohibited always wins.
+- **PDF content search finds no text:** image-only PDFs have no embedded text;
+  use ID, title, summary, group, subtype or date criteria.
+- **Maintenance action is absent:** either the capability or lifecycle state
+  forbids it; the server applies the same rule even if a request is crafted.
 - **Viewing time did not increase:** time is credited when the viewer is closed;
   it pauses while the tab is hidden or the reader is idle.
 - **Read message remains mandatory:** choose Read & Clear when closing to record
@@ -443,4 +499,4 @@ information-classification approval.
 - `docs/requirements-traceability.csv` — implementation evidence by requirement.
 - `docs/adr/` — architecture decision records.
 
-The next product phase is Prompt 7: scoped search and maintenance.
+The next product phase is Prompt 8: reporting and compliance.
