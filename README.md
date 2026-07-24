@@ -26,12 +26,25 @@ listed in `docs/release-candidate.md`.
 | Prompt 8 | Site-scoped compliance reports, retained background runs, PDF/CSV and print viewer |
 | Prompt 9 | Controlled SAP CSV staging, rejection, preview, selective commit and reconciliation |
 | Prompt 10 | Audit search, legal holds, retention previews, two-person purge and continuity export |
-| Prompt 11 | NATS-aligned responsive UI, accessibility, security and operational hardening |
+| Prompt 11 | Corporate-aligned responsive UI, accessibility, security and operational hardening |
 | Prompt 12 | Release gates, clean/upgrade/recovery runbook and complete verification evidence |
 
 The controlling requirements contain 121 inventoried source requirements.
 Seventeen proposed gap-closing requirements are tracked separately and are not
 silently treated as approved source requirements.
+
+### Product UX audit
+
+The pre-redesign product audit covers every implemented product area, responsive
+layouts, accessibility and operational states. Its findings are separated into:
+
+- `docs/ux-audit.md` — evidence, issue register and ten highest-value improvements;
+- `docs/user-journeys.md` — role-based current journeys and opportunities;
+- `docs/information-architecture.md` — current route/capability map and target IA;
+- `docs/ux-backlog.md` — prioritised delivery sequence and release-gate record.
+
+No broad redesign was applied during the audit. The only product change is a
+tested Content Security Policy-safe print trigger.
 
 ## Quick start
 
@@ -252,13 +265,12 @@ retention values are placeholders until records-management approval.
 
 ### Corporate interface
 
-The shared UI uses an original FirstBrief identity aligned to the public NATS
-digital language: deep navy, corporate blue, bright cyan, structured white
-space, strong headings and operationally clear cards/tables. It does not bundle
-the NATS logo, website content or proprietary font assets. Keyboard focus,
-responsive layouts, non-colour status labels and reduced-motion preferences are
-maintained throughout. See `docs/brand-ui.md`; production branding still requires
-NATS brand-owner approval.
+The shared UI uses an original FirstBrief identity: deep navy, corporate blue,
+bright cyan, structured white space, strong headings and operationally clear
+cards/tables. It does not bundle third-party website content or proprietary font
+assets. Keyboard focus, responsive layouts, non-colour status labels and
+reduced-motion preferences are maintained throughout. See `docs/brand-ui.md`;
+production branding still requires accountable owner approval.
 
 ### Configure the message taxonomy
 

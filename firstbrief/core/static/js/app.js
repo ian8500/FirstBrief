@@ -11,3 +11,7 @@ document.addEventListener("click", (event) => {
     });
   }
 });
+
+window.addEventListener("load", () => {
+  if (document.querySelector("[data-auto-print]")) window.print();
+});
