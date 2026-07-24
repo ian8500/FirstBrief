@@ -58,6 +58,7 @@ INSTALLED_APPS = [
     "firstbrief.operations",
     "firstbrief.retrieval",
     "firstbrief.reporting",
+    "firstbrief.sapimport",
 ]
 
 MIDDLEWARE = [
@@ -109,6 +110,8 @@ TEMPLATES = [
                 "firstbrief.messaging.context_processors.message_access",
                 "firstbrief.notifications.context_processors.notification_access",
                 "firstbrief.reporting.context_processors.reporting_access",
+                "firstbrief.sapimport.context_processors.import_access",
+                "firstbrief.assurance.context_processors.assurance_access",
             ],
         },
     },

@@ -1,0 +1,11 @@
+{% extends "base.html" %}{% block title %}Retention | FirstBrief{% endblock %}
+{% block content %}<p class="eyebrow">Assurance</p><h1>Retention and continuity</h1>
+<div class="metric-grid"><div class="metric"><span>Archived retention</span><strong>{{ policy.archived_months }} months</strong></div>
+<div class="metric"><span>Expired retention</span><strong>{{ policy.expired_months }} months</strong></div>
+<div class="metric"><span>Active legal holds</span><strong>{{ holds|length }}</strong></div></div>
+<p><a class="button button-secondary" href="{% url 'assurance:continuity' %}">Download continuity export</a></p>
+<form method="post">{% csrf_token %}<button type="submit">Create purge preview</button></form>
+<h2>Purge runs</h2><table><thead><tr><th>Created</th><th>Status</th><th>Candidates</th><th>Action</th></tr></thead><tbody>
+{% for run in runs %}<tr><td>{{ run.created_at }}</td><td>{{ run.get_status_display }}</td><td>{{ run.candidates|length }}</td><td>
+{% if run.status == "preview" %}<form method="post" action="{% url 'assurance:approve-purge' run.pk %}">{% csrf_token %}<button>Approve and execute</button></form>{% else %}{{ run.evidence_sha256 }}{% endif %}
+</td></tr>{% endfor %}</tbody></table>{% endblock %}

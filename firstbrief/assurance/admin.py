@@ -1,6 +1,8 @@
 from django.contrib import admin
 
-from firstbrief.assurance.models import AuditEvent
+from firstbrief.assurance.models import AuditEvent, LegalHold, PurgeRun, RetentionPolicy
+
+admin.site.register((RetentionPolicy, LegalHold, PurgeRun))
 
 
 @admin.register(AuditEvent)

@@ -10,7 +10,8 @@ Detailed design decisions and phase evidence remain in `docs/`.
 
 ## Current delivery status
 
-Prompts 0–8 are implemented and verified.
+Prompts 0–12 are implemented. Final release evidence and owner approvals are
+listed in `docs/release-candidate.md`.
 
 | Phase | Delivered capability |
 | --- | --- |
@@ -23,6 +24,10 @@ Prompts 0–8 are implemented and verified.
 | Prompt 6 | Operational dashboard, reader lists, secure viewer, acknowledgement and access evidence |
 | Prompt 7 | Scoped BOTD/Instruction search, autosuggest, exports and status-aware maintenance |
 | Prompt 8 | Site-scoped compliance reports, retained background runs, PDF/CSV and print viewer |
+| Prompt 9 | Controlled SAP CSV staging, rejection, preview, selective commit and reconciliation |
+| Prompt 10 | Audit search, legal holds, retention previews, two-person purge and continuity export |
+| Prompt 11 | NATS-aligned responsive UI, accessibility, security and operational hardening |
+| Prompt 12 | Release gates, clean/upgrade/recovery runbook and complete verification evidence |
 
 The controlling requirements contain 121 inventoried source requirements.
 Seventeen proposed gap-closing requirements are tracked separately and are not
@@ -210,8 +215,50 @@ formula characters are neutralised. **Close** returns to the report with its
 criteria restored.
 
 Reporting administrators maintain user/watch cohorts and import-change evidence
-in Django administration until Prompt 9 adds import screens.
-`ImportChangeRecord` is the stable hand-off contract for that sequence.
+in Django administration. `ImportChangeRecord` is also populated automatically
+by committed SAP imports.
+
+### Import SAP directory changes
+
+Accounts with **Manage SAP imports** can open **SAP import** or `/imports/`.
+
+1. Select a UTF-8 CSV conforming to `docs/sap-import-contract.md`.
+2. Choose **Validate and preview**. Unsafe, malformed or cross-site data moves
+   to **Files in error** without changing operational data.
+3. Review changes grouped under expandable site headings.
+4. Use **Select all**, **Clear all**, or individual checkboxes.
+5. Select **Save selected updates**.
+6. Review the **SAP process complete** results.
+
+The commit revalidates the exact staged snapshot under a database lock and
+applies selected changes transactionally. Imported accounts have local
+authentication disabled. Applied rows appear in report F11.
+
+### Audit, retention and continuity
+
+Accounts with **View message audit history** can open **Assurance** to search
+append-only events by action or object ID. Accounts with **Manage retention**
+can use `/assurance/retention/` to:
+
+- inspect configured archive/expiry retention and active legal holds;
+- create a non-destructive purge preview;
+- have a different authorised person approve and execute it; and
+- download a private continuity JSON export with its SHA-256 digest in the
+  `X-Content-SHA256` response header.
+
+Active legal holds always exclude messages. Purge removes sensitive version
+content while retaining the message identity and audit evidence. The default
+retention values are placeholders until records-management approval.
+
+### Corporate interface
+
+The shared UI uses an original FirstBrief identity aligned to the public NATS
+digital language: deep navy, corporate blue, bright cyan, structured white
+space, strong headings and operationally clear cards/tables. It does not bundle
+the NATS logo, website content or proprietary font assets. Keyboard focus,
+responsive layouts, non-colour status labels and reduced-motion preferences are
+maintained throughout. See `docs/brand-ui.md`; production branding still requires
+NATS brand-owner approval.
 
 ### Configure the message taxonomy
 

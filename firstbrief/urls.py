@@ -22,6 +22,8 @@ urlpatterns = [
     path("operational/", include("firstbrief.operations.urls")),
     path("search/", include("firstbrief.retrieval.urls")),
     path("reports/", include("firstbrief.reporting.urls")),
+    path("imports/", include("firstbrief.sapimport.urls")),
+    path("assurance/", include("firstbrief.assurance.urls")),
     path("admin/", admin.site.urls),
     path("health/live/", views.liveness, name="health-live"),
     path("health/ready/", views.readiness, name="health-ready"),

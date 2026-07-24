@@ -1,0 +1,10 @@
+{% extends "base.html" %}{% block title %}Review SAP changes | FirstBrief{% endblock %}
+{% block content %}<p class="eyebrow">SAP import</p><h1>Review {{ batch.filename }}</h1>
+<p>Checksum <code>{{ batch.content_sha256 }}</code>. Only selected changes will be committed.</p>
+{% if batch.status == "staged" %}<form method="post" action="{% url 'sapimport:commit' batch.pk %}">{% csrf_token %}
+<div class="toolbar"><button type="button" data-select-all>Select all</button><button type="button" data-select-none>Clear all</button></div>
+{% for site, changes in groups.items %}<details open><summary><strong>{{ site }}</strong> — {{ changes|length }} updates</summary>
+{% for change in changes %}<label class="selection-row"><input type="checkbox" name="selected" value="{{ change.pk }}" checked>
+<strong>{{ change.action|title }}</strong> {{ change.user_id }} — {{ change.payload.first_name }} {{ change.payload.last_name }}</label>{% endfor %}
+</details>{% endfor %}<button type="submit">Save selected updates</button></form>
+{% else %}<p>This batch is {{ batch.get_status_display }}.</p>{% endif %}{% endblock %}
