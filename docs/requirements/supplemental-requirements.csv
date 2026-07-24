@@ -16,3 +16,5 @@ FR-K04,Notification scheduling,"Visibility and notification timing are independe
 FR-K05,Business continuity export,"Authorised users can create a timestamped offline briefing/compliance pack with checksums.",Proposed
 FR-K06,Delegated approval,"Approvers can nominate time-bounded delegates with a complete audit trail.",Proposed
 FR-K07,Bulk acknowledgement support,"Supervisors can filter/chase outstanding acknowledgements without acknowledging for users unless explicitly authorised and audited.",Proposed
+FR-K08,Role-aware attention inbox,"Authenticated users receive one deterministic task inbox combining authorised reading, approval and operational recovery work, with saved display preferences, non-colour urgency, responsive accessibility and no count leakage.",Proposed
+FR-K09,Enhanced protected message reader,"Authorised readers can resume version-scoped PDF progress, use protected contents/previews/search and scoped adjacent/related navigation, while lifecycle changes prevent stale acknowledgement and preserve bounded reading evidence.",Proposed

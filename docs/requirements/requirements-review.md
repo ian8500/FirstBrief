@@ -39,4 +39,7 @@ All 52 pages were processed. The register contains 121 unique detailed requireme
 
 ## Proposed requirements status
 
-NFR-01–NFR-10 and FR-K01–FR-K07 from the implementation guide are retained as **proposed** requirements. They are necessary to close material gaps but are not represented as contractual source requirements until formally approved.
+NFR-01–NFR-10 and FR-K01–FR-K07 from the implementation guide, plus FR-K08 and
+FR-K09 from subsequent product UX requests, are retained as **proposed** requirements.
+They are necessary to close material gaps but are not represented as contractual
+source requirements until formally approved.

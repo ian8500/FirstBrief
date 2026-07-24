@@ -1,21 +1,50 @@
 {% extends "base.html" %}
 {% block title %}Operational display settings · FirstBrief{% endblock %}
 {% block content %}
-  <section class="panel narrow">
-    <p class="eyebrow">Configuration</p>
-    <h1 class="page-title">Operational display settings</h1>
-    <p>Colour is supplemented by explicit text and symbols throughout the interface.</p>
-    <form method="post" novalidate>
+  <header class="page-header">
+    <div>
+      <p class="eyebrow">Personal preferences</p>
+      <h1 class="page-title">Operational display settings</h1>
+      <p>Choose which authorised tasks appear in your attention inbox. Preferences never grant access to information.</p>
+    </div>
+    <a href="{% url 'home' %}">Back to dashboard</a>
+  </header>
+
+  <section class="panel narrow" aria-labelledby="personal-settings-heading">
+    <h2 id="personal-settings-heading">Your dashboard</h2>
+    <form method="post" novalidate data-loading-form>
       {% csrf_token %}
-      {% if form.errors %}<div class="validation-summary" role="alert"><h2>There is a problem</h2></div>{% endif %}
-      {% for field in form %}
+      {% if preference_form.errors %}<div class="validation-summary" role="alert"><h3>There is a problem</h3></div>{% endif %}
+      {% for field in preference_form %}
         <div class="form-group">
           {{ field.label_tag }} {{ field }}
           {% if field.help_text %}<p class="help">{{ field.help_text }}</p>{% endif %}
           {% for error in field.errors %}<p class="error">{{ error }}</p>{% endfor %}
         </div>
       {% endfor %}
-      <button type="submit">Save display settings</button>
+      <p class="loading-message" role="status" hidden data-loading-message>Saving your preferences…</p>
+      <button type="submit" name="save_preferences" value="1">Save my dashboard</button>
     </form>
   </section>
+
+  {% if can_manage_policy %}
+    <section class="panel narrow" aria-labelledby="policy-settings-heading">
+      <p class="eyebrow">Administrator policy</p>
+      <h2 id="policy-settings-heading">Organisation-wide display policy</h2>
+      <p>Colour is supplemented by explicit text and symbols throughout the interface.</p>
+      <form method="post" novalidate data-loading-form>
+        {% csrf_token %}
+        {% if policy_form.errors %}<div class="validation-summary" role="alert"><h3>There is a problem</h3></div>{% endif %}
+        {% for field in policy_form %}
+          <div class="form-group">
+            {{ field.label_tag }} {{ field }}
+            {% if field.help_text %}<p class="help">{{ field.help_text }}</p>{% endif %}
+            {% for error in field.errors %}<p class="error">{{ error }}</p>{% endfor %}
+          </div>
+        {% endfor %}
+        <p class="loading-message" role="status" hidden data-loading-message>Saving organisation policy…</p>
+        <button type="submit" name="save_policy" value="1">Save organisation policy</button>
+      </form>
+    </section>
+  {% endif %}
 {% endblock %}

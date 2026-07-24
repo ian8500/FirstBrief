@@ -2,7 +2,7 @@ from typing import ClassVar
 
 from django import forms
 
-from firstbrief.operations.models import OperationalPolicy
+from firstbrief.operations.models import DashboardPreference, OperationalPolicy
 
 
 class CloseMessageForm(forms.Form):
@@ -12,8 +12,8 @@ class CloseMessageForm(forms.Form):
 
     action = forms.ChoiceField(
         choices=(
-            (Action.READ, "Read — keep in Mandatory Messages"),
-            (Action.CLEAR, "Read & Clear — move to Other Messages"),
+            (Action.READ, "Mark as read — keep in Mandatory Messages"),
+            (Action.CLEAR, "Acknowledge and clear — move to Other Messages"),
         ),
         widget=forms.RadioSelect,
     )
@@ -53,4 +53,29 @@ class OperationalPolicyForm(forms.ModelForm):  # type: ignore[type-arg]
             "pre_effective_colour": forms.TextInput(
                 attrs={"type": "color", "class": "colour-input"}
             ),
+        }
+
+
+class DashboardPreferenceForm(forms.ModelForm):  # type: ignore[type-arg]
+    class Meta:
+        model = DashboardPreference
+        fields = (
+            "show_forthcoming",
+            "show_botd",
+            "show_approvals",
+            "show_returned_drafts",
+            "show_notification_failures",
+            "show_expiring_instructions",
+            "show_recently_opened",
+            "item_limit",
+            "expiring_within_days",
+        )
+        labels: ClassVar[dict[str, str]] = {
+            "show_botd": "Show unread Briefs of the Day",
+            "show_approvals": "Show messages awaiting my approval",
+            "show_returned_drafts": "Show my drafts returned for amendment",
+            "show_notification_failures": "Show notification failures I can manage",
+            "show_expiring_instructions": "Show expiring instructions I can manage",
+            "show_recently_opened": "Show recently opened messages not cleared",
+            "item_limit": "Maximum attention items",
         }

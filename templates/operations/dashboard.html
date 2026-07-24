@@ -7,72 +7,79 @@
       <div>
         <p class="eyebrow">Operational dashboard</p>
         <h1 id="page-title" class="page-title">Your briefings</h1>
-        <p class="lead">Prioritise mandatory reading, forthcoming instructions and today’s briefs.</p>
+        <p class="lead">Read, approve and recover the work that needs your attention.</p>
       </div>
-      <dl class="dashboard-counts" aria-label="Unread message counts">
-        <div><dt>Mandatory unread</dt><dd>{{ mandatory_unread }}</dd></div>
-        <div><dt>Other unread</dt><dd>{{ other_unread }}</dd></div>
-      </dl>
+      <div class="dashboard-tools">
+        <dl class="dashboard-counts" aria-label="Your authorised message counts">
+          <div><dt>Attention</dt><dd>{{ attention_total }}</dd></div>
+          <div><dt>Mandatory unread</dt><dd>{{ mandatory_unread }}</dd></div>
+          <div><dt>Other unread</dt><dd>{{ other_unread }}</dd></div>
+        </dl>
+        <a href="{% url 'operations:settings' %}">Customise dashboard</a>
+      </div>
     </section>
 
-    <div class="dashboard-grid">
-      <section class="dashboard-panel dashboard-panel-wide" aria-labelledby="effective-heading">
-        <div class="section-heading">
-          <div>
-            <p class="section-kicker">Since your previous login</p>
-            <h2 id="effective-heading">Newly effective mandatory messages</h2>
-          </div>
-          <a href="{% url 'operations:mandatory' %}">View all mandatory</a>
+    {% for degraded_message in degraded_messages %}
+      <div class="degraded-state" role="status">
+        <strong>Some information is temporarily unavailable.</strong>
+        <span>{{ degraded_message }}</span>
+      </div>
+    {% endfor %}
+
+    {% if continue_item %}
+      <aside class="continue-reading" aria-labelledby="continue-heading">
+        <div>
+          <p class="section-kicker">Pick up where you stopped</p>
+          <h2 id="continue-heading">Continue reading</h2>
+          <p><strong>{{ continue_item.reference }} — {{ continue_item.title }}</strong></p>
+          <p>{{ continue_item.reason }}</p>
         </div>
-        <ul class="brief-card-list">
-          {% for message in effective_since %}
-            <li>
-              <a href="{% url 'operations:viewer' message.pk %}">
-                <strong>{{ message.message_id }}</strong>
-                <span>{{ message.current_version.title }}</span>
-              </a>
-              <span class="status-label status-effective">
-                <span aria-hidden="true">●</span> Effective
-                {{ message.current_version.effective_at|default:message.current_version.release_at|date:"j M Y, H:i" }}
-              </span>
-            </li>
-          {% empty %}
-            <li class="empty-state">No mandatory messages became effective since your previous login.</li>
-          {% endfor %}
-        </ul>
-      </section>
+        <a class="button-link" href="{{ continue_item.action_url }}" data-loading-link>Continue reading</a>
+      </aside>
+    {% endif %}
 
-      <section class="dashboard-panel" aria-labelledby="forthcoming-heading">
-        <p class="section-kicker">Next {{ policy.pre_effective_hours }} hours</p>
-        <h2 id="forthcoming-heading">Forthcoming</h2>
-        <ul class="compact-list">
-          {% for message in forthcoming %}
-            <li>
-              <span class="status-symbol forthcoming-symbol" style="--forthcoming: {{ policy.pre_effective_colour }}" aria-hidden="true">◆</span>
-              <a href="{% url 'operations:viewer' message.pk %}">{{ message.message_id }} — {{ message.current_version.title }}</a>
-              <small>Forthcoming · effective {{ message.current_version.effective_at|date:"j M, H:i" }}</small>
-            </li>
-          {% empty %}
-            <li class="empty-state">No forthcoming messages in this window.</li>
-          {% endfor %}
-        </ul>
-      </section>
+    <section class="attention-inbox" aria-labelledby="attention-heading" aria-busy="false">
+      <div class="section-heading">
+        <div>
+          <p class="section-kicker">Role-aware task inbox</p>
+          <h2 id="attention-heading">Requires your attention</h2>
+          <p>Only work you are authorised to see is included. Items are ordered by urgency and relevant time.</p>
+        </div>
+        {% if attention_truncated %}
+          <p class="result-note">Showing your first {{ preferences.item_limit }} of {{ attention_total }} tasks.</p>
+        {% endif %}
+      </div>
 
-      <section class="dashboard-panel" aria-labelledby="botd-heading">
-        <p class="section-kicker">Current notices</p>
-        <h2 id="botd-heading">Briefs of the Day</h2>
-        <ul class="compact-list">
-          {% for message in botd %}
-            <li>
-              <a href="{% url 'operations:viewer' message.pk %}"><strong>{{ message.current_version.title }}</strong></a>
-              <small>{{ message.message_id }} · released {{ message.current_version.release_at|date:"H:i" }}</small>
-            </li>
-          {% empty %}
-            <li class="empty-state">No current Briefs of the Day for your groups.</li>
-          {% endfor %}
-        </ul>
-      </section>
-    </div>
+      <p class="loading-message" role="status" hidden data-dashboard-loading>Opening task…</p>
+
+      <ol class="attention-list">
+        {% for item in attention_items %}
+          <li class="attention-item attention-{{ item.category }}">
+            <div class="attention-marker" aria-hidden="true">
+              {% if item.urgency_rank == 0 %}!{% elif item.urgency_rank == 1 %}●{% else %}◆{% endif %}
+            </div>
+            <div class="attention-body">
+              <div class="attention-heading">
+                <span class="status-pill">{{ item.urgency }}</span>
+                <span class="attention-reference">{{ item.reference }}</span>
+              </div>
+              <h3>{{ item.title }}</h3>
+              <p>{{ item.reason }}</p>
+              <small>Relevant time: {{ item.due_at|date:"j M Y, H:i" }}</small>
+            </div>
+            <div class="attention-action">
+              <a href="{{ item.action_url }}" data-loading-link>{{ item.action_label }}</a>
+            </div>
+          </li>
+        {% empty %}
+          <li class="attention-empty">
+            <strong>You are up to date.</strong>
+            <span>There are no authorised tasks matching your dashboard preferences.</span>
+            <a href="{% url 'operations:mandatory' %}">Browse mandatory messages</a>
+          </li>
+        {% endfor %}
+      </ol>
+    </section>
 
     <section class="dashboard-actions" aria-label="Message lists">
       <a class="action-card" href="{% url 'operations:mandatory' %}">
