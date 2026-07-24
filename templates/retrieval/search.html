@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% block title %}Message search · FirstBrief{% endblock %}
+{% block content %}
+  <header class="page-header">
+    <div>
+      <p class="eyebrow">Scoped retrieval</p>
+      <h1>Search messages</h1>
+      <p>Results, counts, suggestions and exports are limited to your role, site, message types and group rights.</p>
+    </div>
+    <a class="button button-secondary" href="{% url 'retrieval:export' %}?{{ querystring }}">Export these results</a>
+  </header>
+
+  <form method="get" class="search-panel" novalidate>
+    {% if form.non_field_errors %}
+      <div class="validation-summary" role="alert">
+        <h2>Correct the search criteria</h2>
+        {{ form.non_field_errors }}
+      </div>
+    {% endif %}
+    <div class="search-grid">
+      {% for field in form %}
+        <div class="form-group{% if field.errors %} field-error{% endif %}">
+          {{ field.label_tag }}
+          {% if field.name == "message_id" %}
+            <div data-autosuggest data-url="{% url 'retrieval:suggest-messages' %}">
+              {{ field }}
+              <datalist id="message-id-suggestions"></datalist>
+              <span class="visually-hidden" aria-live="polite" data-suggest-status></span>
+            </div>
+          {% else %}
+            {{ field }}
+          {% endif %}
+          {{ field.errors }}
+        </div>
+      {% endfor %}
+    </div>
+    <div class="button-row">
+      <button type="submit">Search</button>
+      <a class="button button-secondary" href="{% url 'retrieval:search' %}">Clear criteria</a>
+    </div>
+  </form>
+
+  <section class="lookup-panel" aria-labelledby="user-lookup-heading">
+    <h2 id="user-lookup-heading">User lookup</h2>
+    <p>Enter at least three characters of a user ID, first name or surname.</p>
+    <label for="user-lookup">Find a permitted user</label>
+    <div data-autosuggest data-url="{% url 'retrieval:suggest-users' %}">
+      <input id="user-lookup" type="search" autocomplete="off" list="user-suggestions">
+      <datalist id="user-suggestions"></datalist>
+      <span class="visually-hidden" aria-live="polite" data-suggest-status></span>
+    </div>
+  </section>
+
+  <div class="results-heading">
+    <h2>Results</h2>
+    <p>{{ page.paginator.count }} permitted message{{ page.paginator.count|pluralize }}</p>
+  </div>
+  <div class="table-scroll">
+    <table>
+      <thead>
+        <tr>
+          <th scope="col">Message ID</th>
+          <th scope="col">Title</th>
+          <th scope="col">Kind</th>
+          <th scope="col">Group</th>
+          <th scope="col">Subtype</th>
+          <th scope="col">Release</th>
+          <th scope="col">Effective</th>
+          <th scope="col">Expiry</th>
+          <th scope="col">Read status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+          <tr>
+            <th scope="row"><a href="{% url 'retrieval:message' row.message.pk %}">{{ row.message.message_id }}</a></th>
+            <td>{{ row.version.title }}</td>
+            <td>{{ row.message.get_kind_display }}</td>
+            <td>{% for right in row.message.audience_rights.all %}{% if not forloop.first %}, {% endif %}{{ right.message_group }}{% endfor %}</td>
+            <td>{{ row.message.subtype|default:"—" }}</td>
+            <td>{{ row.version.release_at }}</td>
+            <td>{{ row.version.effective_at|default:"—" }}</td>
+            <td>{{ row.version.expiry_at }}</td>
+            <td>{{ row.read_status }}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="9">No permitted messages match these criteria.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if page.paginator.num_pages > 1 %}
+    <nav class="pagination" aria-label="Search result pages">
+      {% if page.has_previous %}<a href="?{{ querystring }}&page={{ page.previous_page_number }}">Previous</a>{% endif %}
+      <span>Page {{ page.number }} of {{ page.paginator.num_pages }}</span>
+      {% if page.has_next %}<a href="?{{ querystring }}&page={{ page.next_page_number }}">Next</a>{% endif %}
+    </nav>
+  {% endif %}
+{% endblock %}

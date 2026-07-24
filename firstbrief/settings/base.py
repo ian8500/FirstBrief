@@ -56,6 +56,7 @@ INSTALLED_APPS = [
     "firstbrief.messaging",
     "firstbrief.notifications",
     "firstbrief.operations",
+    "firstbrief.retrieval",
 ]
 
 MIDDLEWARE = [

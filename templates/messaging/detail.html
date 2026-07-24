@@ -4,7 +4,7 @@
   <p><a href="{% url 'messaging:list' %}">← Message maintenance</a></p>
   <div class="section-heading">
     <h1>{{ message.message_id }} — {{ version.title }}</h1>
-    <a class="button" href="{% url 'messaging:edit' message.pk %}">Create revision</a>
+    {% if can_edit %}<a class="button" href="{% url 'messaging:edit' message.pk %}">Create revision</a>{% endif %}
   </div>
   <dl class="message-metadata">
     <dt>Status</dt><dd>{{ message.get_status_display }}</dd>
@@ -32,7 +32,7 @@
   <h2>Lifecycle actions</h2>
   <p>Actions are validated against the current state and your permissions.</p>
   <div class="lifecycle-actions">
-    <form method="post" action="{% url 'messaging:action' message.pk 'approve' %}">
+    {% if can_approve %}<form method="post" action="{% url 'messaging:action' message.pk 'approve' %}">
       {% csrf_token %}
       <input type="hidden" name="expected_version" value="{{ message.lock_version }}">
       <input type="hidden" name="idempotency_key" value="{{ approve_key }}">
@@ -41,7 +41,7 @@
       <label for="validity-justification">Validity justification, when outside subtype bounds</label>
       <textarea id="validity-justification" name="validity_justification"></textarea>
       <button type="submit">Approve</button>
-    </form>
+    </form>{% endif %}
     {% for action in action_buttons %}
       <form method="post" action="{% url 'messaging:action' message.pk action.command %}">
         {% csrf_token %}
@@ -63,4 +63,19 @@
       <li>{{ item.occurred_at }} — {{ item.get_to_status_display }} — {{ item.reason }}</li>
     {% endfor %}
   </ol>
+  {% if can_view_audit %}
+    <h2>Audit history</h2>
+    <p>Chronological immutable business change records for this message.</p>
+    <ol>
+      {% for event in audit_events %}
+        <li>
+          <strong>{{ event.occurred_at }}</strong> — {{ event.action }}
+          {% if event.actor %}by {{ event.actor.get_full_name|default:event.actor.username }}{% endif %}
+          {% if event.reason %}— {{ event.reason }}{% endif %}
+        </li>
+      {% empty %}
+        <li>No audit events are recorded for this message.</li>
+      {% endfor %}
+    </ol>
+  {% endif %}
 {% endblock %}
