@@ -10,7 +10,7 @@ Detailed design decisions and phase evidence remain in `docs/`.
 
 ## Current delivery status
 
-Prompts 0–7 are implemented and verified.
+Prompts 0–8 are implemented and verified.
 
 | Phase | Delivered capability |
 | --- | --- |
@@ -22,6 +22,7 @@ Prompts 0–7 are implemented and verified.
 | Prompt 5 | Transactional outbox, scheduled lifecycle transitions, notifications, retries and operational recovery |
 | Prompt 6 | Operational dashboard, reader lists, secure viewer, acknowledgement and access evidence |
 | Prompt 7 | Scoped BOTD/Instruction search, autosuggest, exports and status-aware maintenance |
+| Prompt 8 | Site-scoped compliance reports, retained background runs, PDF/CSV and print viewer |
 
 The controlling requirements contain 121 inventoried source requirements.
 Seventeen proposed gap-closing requirements are tracked separately and are not
@@ -185,6 +186,32 @@ Message ID and user suggestions begin after three characters. User results use
 `First name, Surname (User ID)` and remain site-scoped unless **See all primary
 message groups** is granted. Results open in a protected viewer that also
 supports authorised archived content; PDFs never receive public URLs.
+
+### Run compliance reports
+
+Accounts with **View reports** can open **Reports** or `/reports/`. All criteria
+and results are restricted by server-side site, group, role, message-type and
+audience permissions. Users with **Include in Reports** switched off are
+excluded. **See all primary message groups** is the explicit cross-site override.
+
+The catalogue provides F01–F05 membership/mapping reports; F06–F08 unread and
+reading evidence; F09–F11 role/PMG, message-detail and import-change reports;
+F12 HAVE/HAVE NOT accessed cohorts; and F13–F14 group/reportee activity.
+
+Choose a report, enter only the criteria needed, and select **Generate report**.
+Period criteria apply to login activity and the effective (or release) time of
+messages. Archived and not-yet-effective messages are opt-in.
+
+Small results open immediately. Large results, or runs marked **Generate in
+background**, are queued and the result page refreshes while work continues. A
+completed run is an immutable retained snapshot. Use **Download CSV**,
+**Download PDF**, or **Print**. Downloads are private and audited, and CSV
+formula characters are neutralised. **Close** returns to the report with its
+criteria restored.
+
+Reporting administrators maintain user/watch cohorts and import-change evidence
+in Django administration until Prompt 9 adds import screens.
+`ImportChangeRecord` is the stable hand-off contract for that sequence.
 
 ### Configure the message taxonomy
 

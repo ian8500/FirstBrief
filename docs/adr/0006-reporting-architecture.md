@@ -5,9 +5,12 @@
 
 ## Decision
 
-Implement one authorised, site-scoped report framework with versioned catalogue definitions and reusable criteria. Small reports may render synchronously; large reports create asynchronous `ReportRun` snapshots and protected expiring exports. CSV neutralises spreadsheet formulas.
+Implement one authorised, site-scoped report framework with versioned catalogue definitions and reusable criteria. Small reports render synchronously; large reports create asynchronous immutable `ReportRun` snapshots and protected exports. CSV neutralises spreadsheet formulas.
 
 ## Consequences
 
-Reports F01–F14 and F17–F28 share security, filtering, viewer, export, and reconciliation infrastructure. Report-specific query logic still needs seeded expected-result tests. Export classification, quotas, expiry, and re-authentication require approval.
-
+Reports F01–F14 and refinements F17–F28 share security, filtering, viewer, export,
+and seeded reconciliation infrastructure. User/watch cohorts are explicit
+site-scoped reporting references. `ImportChangeRecord` provides the stable input
+contract for Prompt 9. Export classification, quotas, expiry, and
+re-authentication remain policy decisions requiring approval.
