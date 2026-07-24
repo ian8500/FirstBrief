@@ -6,6 +6,7 @@
     <title>{% block title %}FirstBrief{% endblock %}</title>
     <link rel="stylesheet" href="/static/css/app.css">
     <script src="/static/js/configuration.js" defer></script>
+    <script src="/static/js/consumption.js" defer></script>
   </head>
   <body>
     <a class="skip-link" href="#main-content">Skip to main content</a>
@@ -14,8 +15,12 @@
         <a class="brand" href="{% url 'home' %}">FirstBrief</a>
         {% if request.user.is_authenticated %}
           <nav aria-label="Account">
+            <a href="{% url 'home' %}">Dashboard</a>
+            <a href="{% url 'operations:mandatory' %}">Mandatory</a>
+            <a href="{% url 'operations:other' %}">Other messages</a>
             {% if can_manage_configuration %}
               <a href="{% url 'configuration:index' %}">Configuration</a>
+              <a href="{% url 'operations:settings' %}">Display settings</a>
             {% endif %}
             {% if can_manage_messages %}
               <a href="{% url 'messaging:list' %}">Messages</a>

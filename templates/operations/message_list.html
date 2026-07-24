@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% load tz %}
+{% block title %}{{ heading }} · FirstBrief{% endblock %}
+{% block content %}
+  {% timezone site_timezone %}
+    <section class="page-header">
+      <div>
+        <p class="eyebrow">Operational messages</p>
+        <h1 class="page-title">{{ heading }}</h1>
+        <p>
+          {% if list_kind == "mandatory" %}
+            Required messages remain here until you choose Read &amp; Clear.
+          {% else %}
+            Reference messages and mandatory messages you have cleared.
+          {% endif %}
+        </p>
+      </div>
+      <div class="view-options">
+        {% if grouped %}
+          <a class="button button-secondary" href="?sort={{ sort }}">Show one list</a>
+        {% else %}
+          <a class="button button-secondary" href="?sort={{ sort }}&amp;group=subtype">Group by subtype</a>
+        {% endif %}
+      </div>
+    </section>
+
+    <div class="status-key" aria-label="Message status key">
+      <span><span class="status-symbol unread-symbol" aria-hidden="true">●</span> Unread</span>
+      <span><span class="status-symbol overdue-symbol" aria-hidden="true">▲</span> Overdue</span>
+      <span><span class="status-symbol forthcoming-symbol" style="--forthcoming: {{ policy.pre_effective_colour }}" aria-hidden="true">◆</span> Forthcoming</span>
+    </div>
+
+    {% if grouped %}
+      {% for label, group in grouped_rows.items %}
+        <section class="message-group" aria-labelledby="group-{{ forloop.counter }}">
+          <h2 id="group-{{ forloop.counter }}">{{ label }} <span class="count-badge">{{ group.unread }} unread</span></h2>
+          {% include "operations/partials/message_table.html" with rows=group.rows %}
+        </section>
+      {% empty %}
+        <p class="empty-state">No messages are available in this list.</p>
+      {% endfor %}
+    {% else %}
+      {% include "operations/partials/message_table.html" with rows=rows %}
+    {% endif %}
+  {% endtimezone %}
+{% endblock %}

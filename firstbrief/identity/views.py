@@ -3,6 +3,7 @@ from __future__ import annotations
 from django.contrib import messages
 from django.contrib.auth import logout
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth.forms import AuthenticationForm
 from django.contrib.auth.views import (
     LoginView,
     PasswordChangeView,
@@ -44,6 +45,13 @@ class FirstBriefLoginView(LoginView):
     template_name = "identity/login.html"
     authentication_form = AccessibleAuthenticationForm
     redirect_authenticated_user = True
+
+    def form_valid(self, form: AuthenticationForm) -> HttpResponse:
+        previous_login = form.get_user().last_login
+        response = super().form_valid(form)
+        if previous_login is not None:
+            self.request.session["previous_login_at"] = previous_login.isoformat()
+        return response
 
 
 class FirstBriefPasswordChangeView(PasswordChangeView):

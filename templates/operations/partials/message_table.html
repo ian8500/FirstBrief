@@ -1,0 +1,37 @@
+<div class="table-scroll">
+  <table class="operational-table">
+    <thead>
+      <tr>
+        <th scope="col"><a href="?sort=message{% if grouped %}&amp;group=subtype{% endif %}">Message</a></th>
+        <th scope="col"><a href="?sort=effective{% if grouped %}&amp;group=subtype{% endif %}">Effective</a></th>
+        <th scope="col"><a href="?sort=expires{% if grouped %}&amp;group=subtype{% endif %}">Expires</a></th>
+        <th scope="col"><a href="?sort=printed{% if grouped %}&amp;group=subtype{% endif %}">Printed</a></th>
+        <th scope="col"><a href="?sort=emailed{% if grouped %}&amp;group=subtype{% endif %}">Emailed</a></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in rows %}
+        <tr class="{% if row.unread %}message-unread{% endif %}">
+          <td>
+            <a href="{% url 'operations:viewer' row.message.pk %}">
+              <strong>{{ row.message.message_id }}</strong>
+              <span class="message-title">{{ row.message.current_version.title }}</span>
+            </a>
+            <div class="row-status">
+              {% if row.unread %}<span><span class="status-symbol unread-symbol" aria-hidden="true">●</span> Unread</span>{% endif %}
+              {% if row.overdue %}<span class="overdue-text"><span aria-hidden="true">▲</span> Overdue</span>{% endif %}
+              {% if row.forthcoming %}<span><span class="status-symbol forthcoming-symbol" style="--forthcoming: {{ policy.pre_effective_colour }}" aria-hidden="true">◆</span> Forthcoming</span>{% endif %}
+              {% if row.cleared %}<span><span aria-hidden="true">✓</span> Cleared</span>{% endif %}
+            </div>
+          </td>
+          <td>{{ row.effective_at|date:"j M Y, H:i" }}</td>
+          <td>{{ row.message.current_version.expiry_at|date:"j M Y, H:i" }}</td>
+          <td>{{ row.printed_at|date:"j M Y, H:i"|default:"—" }}</td>
+          <td>{{ row.emailed_at|date:"j M Y, H:i"|default:"—" }}</td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="5" class="empty-state">No messages are available in this list.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>

@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Feedback on {{ message.message_id }} · FirstBrief{% endblock %}
+{% block content %}
+  <section class="panel narrow">
+    <p class="eyebrow">Message feedback</p>
+    <h1 class="page-title">Contact the originator</h1>
+    <p>Feedback for <strong>{{ message.message_id }} — {{ message.current_version.title }}</strong> will be sent to the originator and configured administrators.</p>
+    <form method="post" novalidate>
+      {% csrf_token %}
+      {% if form.non_field_errors %}<div class="validation-summary" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+      {% for field in form %}
+        <div class="form-group">
+          {{ field.label_tag }} {{ field }}
+          {% for error in field.errors %}<p class="error">{{ error }}</p>{% endfor %}
+        </div>
+      {% endfor %}
+      <button type="submit">Send feedback</button>
+      <a class="button button-secondary" href="{% url 'operations:viewer' message.pk %}">Cancel</a>
+    </form>
+  </section>
+{% endblock %}

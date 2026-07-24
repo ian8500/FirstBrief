@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% load tz %}
+{% block title %}{{ message.message_id }} · FirstBrief{% endblock %}
+{% block content %}
+  {% timezone site_timezone %}
+    <article class="message-viewer" data-view-timer data-idle-seconds="{{ policy.idle_timeout_seconds }}">
+      <header class="viewer-header">
+        <div>
+          <p class="eyebrow">{{ message.get_kind_display }}</p>
+          <h1 class="page-title">{{ version.title }}</h1>
+          <p class="message-reference">{{ message.message_id }} · {{ message.message_type.name }}{% if message.subtype %} · {{ message.subtype.name }}{% endif %}</p>
+        </div>
+        <div class="viewer-state">
+          {% if mandatory %}<span class="status-pill status-mandatory"><span aria-hidden="true">!</span> Mandatory</span>{% endif %}
+          <span class="status-pill">{{ message.get_status_display }}</span>
+        </div>
+      </header>
+
+      <dl class="viewer-metadata">
+        <div><dt>Originator</dt><dd>{{ message.originator.get_full_name|default:message.originator.username }}</dd></div>
+        <div><dt>Released</dt><dd>{{ version.release_at|date:"j M Y, H:i" }}</dd></div>
+        <div><dt>Effective</dt><dd>{{ version.effective_at|date:"j M Y, H:i"|default:"On release" }}</dd></div>
+        <div><dt>Expires</dt><dd>{{ version.expiry_at|date:"j M Y, H:i" }}</dd></div>
+        {% if receipt %}<div><dt>Recorded viewing time</dt><dd>{{ receipt.cumulative_view_seconds }} seconds</dd></div>{% endif %}
+      </dl>
+
+      {% if version.summary %}<p class="message-summary">{{ version.summary }}</p>{% endif %}
+
+      <section class="message-content" aria-labelledby="content-heading">
+        <h2 id="content-heading">Message content</h2>
+        {% if message.kind == "botd" %}
+          <div class="text-content">{{ version.text_content|linebreaks }}</div>
+        {% elif display_asset %}
+          <iframe
+            class="pdf-viewer"
+            title="Display PDF for {{ message.message_id }}"
+            src="{% url 'operations:file' message.pk display_asset.pk %}">
+          </iframe>
+          <p><a href="{% url 'operations:file' message.pk display_asset.pk %}" target="_blank" rel="noopener">Open the secure PDF in a new tab</a></p>
+        {% else %}
+          <p class="warning">The protected display PDF is not available.</p>
+        {% endif %}
+      </section>
+
+      <nav class="viewer-actions" aria-label="Message actions">
+        <form method="post" action="{% url 'operations:print' message.pk %}" target="_blank">
+          {% csrf_token %}<button type="submit" class="button-secondary">Print</button>
+        </form>
+        <form method="post" action="{% url 'operations:email' message.pk %}">
+          {% csrf_token %}<button type="submit" class="button-secondary">Email to me</button>
+        </form>
+        <a class="button button-secondary" href="{% url 'operations:feedback' message.pk %}">Send feedback</a>
+      </nav>
+
+      <section class="close-panel" aria-labelledby="close-heading">
+        <h2 id="close-heading">Finish reading</h2>
+        <p>
+          Viewing time is recorded as supporting information. For mandatory messages,
+          <strong>Read &amp; Clear is the compliance acknowledgement</strong>.
+        </p>
+        <form method="post" action="{% url 'operations:close' message.pk %}" data-close-form>
+          {% csrf_token %}
+          {{ close_form.view_session }}
+          {{ close_form.active_seconds }}
+          {% if mandatory %}
+            <fieldset>
+              <legend>Choose what happens when you close this message</legend>
+              {{ close_form.action }}
+            </fieldset>
+          {% endif %}
+          <button type="submit">{% if mandatory %}Confirm and close{% else %}Close message{% endif %}</button>
+        </form>
+      </section>
+    </article>
+  {% endtimezone %}
+{% endblock %}

@@ -27,7 +27,7 @@ def test_home_is_accessible(client: Client) -> None:
     content = response.content.decode()
     assert 'href="#main-content"' in content
     assert 'id="main-content"' in content
-    assert "Engineering foundation" in content
+    assert "Your briefings" in content
 
 
 def test_liveness_has_no_cache_and_correlation_id(client: Client) -> None:
