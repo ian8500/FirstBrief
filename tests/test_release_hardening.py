@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import pytest
 from django.core.management import call_command
+from django.template.loader import render_to_string
 from django.test import Client
 
 
@@ -18,3 +19,29 @@ def test_security_headers_and_csp_safe_shell() -> None:
 @pytest.mark.django_db
 def test_release_evidence_command() -> None:
     call_command("release_evidence")
+
+
+def test_print_template_uses_csp_safe_external_trigger() -> None:
+    source = render_to_string(
+        "operations/print_message.html",
+        {
+            "message": type(
+                "MessageStub",
+                (),
+                {
+                    "message_id": "TEST",
+                    "kind": "botd",
+                    "get_kind_display": lambda self: "Brief of the Day",
+                },
+            )(),
+            "version": type(
+                "VersionStub",
+                (),
+                {"title": "Test", "release_at": None, "effective_at": None, "text_content": ""},
+            )(),
+            "print_asset": None,
+            "site_timezone": "Europe/London",
+        },
+    )
+    assert "data-auto-print" in source
+    assert "<script>" not in source
